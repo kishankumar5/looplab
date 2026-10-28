@@ -1,8 +1,8 @@
 # HW3 Before/After Test: Same Feature With and Without CLAUDE.md
 
-**Feature:** [Issue #5](https://github.com/kishankumar5/looplab/issues/5), "Toggle steps on a 5x16 step grid" (Sprint 1)
-**Tool:** Claude Code 2.1.302, model `claude-opus-5-5`
-**Date:** 2026-10-28
+- **Feature:** [Issue #5](https://github.com/kishankumar5/looplab/issues/5), "Toggle steps on a 5x16 step grid" (Sprint 1)
+- **Tool:** Claude Code 2.1.302, model `claude-opus-5-5`
+- **Date:** 2026-10-28
 
 ## Method
 
