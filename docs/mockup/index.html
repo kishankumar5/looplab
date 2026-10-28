@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoopLab Mockup</title>
+<!--
+  LoopLab clickable mockup (no sound, no backend).
+  Purpose: show layout, components, and user flows for the AI and for the team.
+  Screens: Editor, My Beats, Gallery, Shared beat (listen-only), Sign in.
+  Switch screens with the top nav or the in-page links.
+-->
+<style>
+  :root {
+    --bg: #1d1a24;          /* night-room purple-black */
+    --panel: #29243a;
+    --panel-2: #332c47;
+    --line: #463d5e;
+    --text: #f1e9da;        /* warm paper */
+    --muted: #b3a8c4;
+    --accent: #f2a65a;      /* sunset orange: active steps, primary buttons */
+    --accent-2: #8fc1b5;    /* sage: playhead, links */
+    --danger: #e07a7a;
+    --radius: 10px;
+    --font: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+  a { color: var(--accent-2); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+
+  /* Header */
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); margin-bottom: 20px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 20px; letter-spacing: .5px; }
+  .logo span { color: var(--accent); }
+  nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+  nav button { background: none; border: 0; padding: 8px 12px; border-radius: 8px; color: var(--muted); }
+  nav button[aria-current="page"] { background: var(--panel); color: var(--text); }
+  .who { color: var(--muted); font-size: 14px; }
+
+  .btn { border: 1px solid var(--line); background: var(--panel-2); padding: 8px 14px; border-radius: 8px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #2a1d10; font-weight: 700; }
+  .btn.ghost { background: none; }
+  .btn:focus-visible, .cell:focus-visible, nav button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .note { font-size: 13px; color: var(--muted); border-left: 3px solid var(--accent-2); padding: 6px 10px; margin: 0 0 16px; background: var(--panel); border-radius: 0 8px 8px 0; }
+
+  /* Editor */
+  .titlebar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .titlebar input { background: none; border: 0; border-bottom: 1px dashed var(--line); color: var(--text); font: inherit; font-size: 22px; font-weight: 700; padding: 4px 0; min-width: 0; flex: 1; }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.public { color: var(--accent-2); border-color: var(--accent-2); }
+
+  .transport { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; background: var(--panel); padding: 12px 14px; border-radius: var(--radius); margin-bottom: 12px; }
+  .play { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--accent); color: #2a1d10; font-size: 18px; font-weight: 900; }
+  .ctl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .ctl input[type=range] { width: 130px; accent-color: var(--accent); }
+  .ctl b { color: var(--text); font-size: 14px; }
+  .spacer { flex: 1; }
+
+  .grid-wrap { background: var(--panel); border-radius: var(--radius); padding: 12px; overflow-x: auto; }
+  :root { --grid-cols: 150px repeat(4, minmax(26px, 1fr)) 6px repeat(4, minmax(26px, 1fr)) 6px repeat(4, minmax(26px, 1fr)) 6px repeat(4, minmax(26px, 1fr)); }
+  .row { display: grid; grid-template-columns: var(--grid-cols); gap: 5px; align-items: center; margin-bottom: 6px; min-width: 640px; }
+  .rowhead { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .rowhead .name { width: 52px; }
+  .rowhead input[type=range] { width: 60px; accent-color: var(--accent-2); }
+  .mute { background: none; border: 1px solid var(--line); border-radius: 6px; font-size: 11px; padding: 2px 5px; color: var(--muted); }
+  .mute[aria-pressed="true"] { background: var(--danger); color: #2a1010; border-color: var(--danger); }
+  .cell { aspect-ratio: 1; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); padding: 0; }
+  .cell[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px #f2a65a55; }
+  .cell.now { outline: 2px solid var(--accent-2); }
+  .steps-label { display: grid; grid-template-columns: var(--grid-cols); gap: 5px; font-size: 10px; color: var(--muted); min-width: 640px; margin-bottom: 4px; }
+  .steps-label span { text-align: center; }
+
+  .lofi { display: flex; gap: 20px; flex-wrap: wrap; background: var(--panel); padding: 12px 14px; border-radius: var(--radius); margin-top: 12px; align-items: center; }
+  .lofi h3 { margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--accent-2); color: #10201c; padding: 10px 16px; border-radius: 8px; font-weight: 700; display: none; }
+
+  /* Lists and cards */
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 12px; background: var(--panel); padding: 12px 14px; border-radius: var(--radius); flex-wrap: wrap; }
+  .item .t { font-weight: 700; flex: 1; min-width: 140px; }
+  .item .meta { color: var(--muted); font-size: 13px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .mini { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; }
+  .mini i { aspect-ratio: 1; background: var(--panel-2); border-radius: 2px; }
+  .mini i.on { background: var(--accent); }
+  .card .row2 { display: flex; gap: 8px; align-items: center; }
+  .like[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  .credit { font-size: 13px; color: var(--muted); }
+  .sorts { display: flex; gap: 6px; margin-bottom: 14px; }
+  .sorts .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+  /* Auth */
+  .auth { max-width: 380px; margin: 30px auto; background: var(--panel); padding: 22px; border-radius: var(--radius); display: flex; flex-direction: column; gap: 12px; }
+  .auth label { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .auth input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; color: var(--text); font: inherit; }
+  .err { color: var(--danger); font-size: 13px; }
+  h2 { margin: 0 0 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Loop<span>Lab</span></div>
+    <nav aria-label="Mockup screens">
+      <button data-go="editor" aria-current="page">Editor</button>
+      <button data-go="mine">My Beats</button>
+      <button data-go="gallery">Gallery</button>
+      <button data-go="shared">Shared link</button>
+      <button data-go="signin">Sign in</button>
+    </nav>
+    <span class="who">Signed in as <b>nick</b></span>
+  </header>
+
+  <!-- ========== EDITOR (US-2, US-3, US-4) ========== -->
+  <section class="screen active" id="editor" aria-label="Editor">
+    <p class="note">Editor. Anyone can play here; Save needs an account. Grid cells toggle; Play moves the playhead (no sound in the mockup).</p>
+    <div class="titlebar">
+      <input value="rainy window" aria-label="Beat title">
+      <span class="pill" id="vis">Private</span>
+      <button class="btn ghost" id="visBtn">Make public</button>
+      <button class="btn ghost" title="Undo (Cmd+Z)">↶ Undo</button>
+      <button class="btn ghost" title="Redo (Cmd+Shift+Z)">↷ Redo</button>
+      <button class="btn primary">Save</button>
+    </div>
+
+    <div class="transport">
+      <button class="play" id="play" aria-label="Play">▶</button>
+      <div class="ctl">Tempo <b><span id="bpmv">82</span> BPM</b><input type="range" min="60" max="140" value="82" id="bpm"></div>
+      <div class="ctl">Swing <b><span id="swv">20</span>%</b><input type="range" min="0" max="60" value="20" id="sw"></div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="clear">Clear</button>
+      <button class="btn" id="share">Copy share link</button>
+    </div>
+
+    <div class="grid-wrap" role="group" aria-label="Step grid">
+      <div class="steps-label" aria-hidden="true"><span></span></div>
+      <div id="grid"></div>
+    </div>
+
+    <div class="lofi">
+      <h3>Lo-fi</h3>
+      <div class="ctl">Muffle <b><span id="mfv">35</span></b><input type="range" min="0" max="100" value="35" id="mf"></div>
+      <div class="ctl">Vinyl crackle <b><span id="crv">25</span></b><input type="range" min="0" max="100" value="25" id="cr"></div>
+    </div>
+  </section>
+
+  <!-- ========== MY BEATS (US-4) ========== -->
+  <section class="screen" id="mine" aria-label="My Beats">
+    <h2>My Beats</h2>
+    <p class="note">Only the owner sees this page. New beats start private.</p>
+    <div class="list">
+      <div class="item"><span class="t">rainy window</span><span class="pill">Private</span><span class="meta">82 BPM · edited 2 min ago</span><button class="btn" data-go="editor">Open</button><button class="btn ghost">Rename</button><button class="btn ghost" style="color:var(--danger)">Delete</button></div>
+      <div class="item"><span class="t">3am ramen</span><span class="pill public">Public</span><span class="meta">74 BPM · 12 likes · edited yesterday</span><button class="btn" data-go="editor">Open</button><button class="btn ghost">Rename</button><button class="btn ghost" style="color:var(--danger)">Delete</button></div>
+      <div class="item"><span class="t">study hall (remix)</span><span class="pill">Private</span><span class="meta">90 BPM · Remixed from <a href="#" data-go="shared">study hall</a> by kishan</span><button class="btn" data-go="editor">Open</button><button class="btn ghost">Rename</button><button class="btn ghost" style="color:var(--danger)">Delete</button></div>
+    </div>
+  </section>
+
+  <!-- ========== GALLERY (US-6) ========== -->
+  <section class="screen" id="gallery" aria-label="Gallery">
+    <h2>Gallery</h2>
+    <div class="sorts"><button class="btn" aria-pressed="true">Newest</button><button class="btn" aria-pressed="false">Most liked</button></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- ========== SHARED BEAT (US-5) ========== -->
+  <section class="screen" id="shared" aria-label="Shared beat">
+    <p class="note">What a friend sees at <code>/b/{id}</code>. No account needed to listen. The grid is read-only.</p>
+    <div class="titlebar"><h2 style="margin:0;flex:1">study hall</h2><span class="credit">by <b>kishan</b> · 90 BPM · swing 30% · muffle 50 · crackle 40</span></div>
+    <div class="transport">
+      <button class="play" aria-label="Play">▶</button>
+      <div class="spacer"></div>
+      <button class="btn like" aria-pressed="false" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed')!=='true')">♥ 21</button>
+      <button class="btn primary" data-go="mine">Remix</button>
+    </div>
+    <div class="grid-wrap"><div id="roGrid"></div></div>
+  </section>
+
+  <!-- ========== SIGN IN (US-1) ========== -->
+  <section class="screen" id="signin" aria-label="Sign in">
+    <form class="auth" onsubmit="event.preventDefault()">
+      <h2>Sign in to save your beat</h2>
+      <label>Email<input type="email" value="nick@example.com"></label>
+      <label>Password<input type="password" value="hunter22"></label>
+      <button class="btn primary">Sign in</button>
+      <span class="err">(error example) Wrong email or password.</span>
+      <span class="credit">New here? <a href="#">Create an account</a>. Your unsaved beat will be kept.</span>
+    </form>
+  </section>
+</div>
+<div class="toast" id="toast" role="status">Link copied</div>
+
+<script>
+  const TRACKS = ["Kick", "Snare", "Hi-hat", "Bass", "Synth"];
+  const START = [
+    [1,0,0,0, 0,0,0,0, 1,0,1,0, 0,0,0,0],
+    [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,1],
+    [1,0,0,0, 0,0,0,1, 0,0,1,0, 0,0,0,0],
+    [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,1,0,0],
+  ];
+
+  // Screen switching
+  function go(id) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === id));
+    document.querySelectorAll("nav button").forEach(b => b.toggleAttribute("aria-current", b.dataset.go === id));
+    document.querySelectorAll("nav button[aria-current]").forEach(b => b.setAttribute("aria-current", "page"));
+  }
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-go]");
+    if (t) { e.preventDefault(); go(t.dataset.go); }
+  });
+
+  // Step labels 1..16
+  const lbl = document.querySelector(".steps-label");
+  for (let i = 1; i <= 16; i++) {
+    if (i > 1 && (i - 1) % 4 === 0) lbl.appendChild(document.createElement("span")); // gap between groups of 4
+    const s = document.createElement("span"); s.textContent = i; lbl.appendChild(s);
+  }
+
+  // Build grid (editable or read-only)
+  function buildGrid(el, editable) {
+    TRACKS.forEach((name, r) => {
+      const row = document.createElement("div"); row.className = "row";
+      row.innerHTML = `<div class="rowhead"><span class="name">${name}</span>` +
+        (editable ? `<input type="range" min="0" max="100" value="80" aria-label="${name} volume"><button class="mute" aria-pressed="false">M</button>` : "") + `</div>`;
+      START[r].forEach((on, c) => {
+        const b = document.createElement("button");
+        if (c % 4 === 0 && c) row.appendChild(document.createElement("span")); // gap between groups of 4
+        b.className = "cell";
+        b.setAttribute("aria-label", `${name} step ${c + 1}`);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.dataset.col = c;
+        if (editable) b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true");
+        else b.disabled = true;
+        row.appendChild(b);
+      });
+      el.appendChild(row);
+    });
+    el.querySelectorAll(".mute").forEach(m => m.onclick = () => m.setAttribute("aria-pressed", m.getAttribute("aria-pressed") !== "true"));
+  }
+  buildGrid(document.getElementById("grid"), true);
+  buildGrid(document.getElementById("roGrid"), false);
+
+  // Fake playback: moves the playhead at the chosen tempo
+  let timer = null, step = 0;
+  const playBtn = document.getElementById("play");
+  function tick() {
+    document.querySelectorAll("#grid .cell").forEach(c => c.classList.toggle("now", +c.dataset.col === step));
+    step = (step + 1) % 16;
+  }
+  function togglePlay() {
+    if (timer) { clearInterval(timer); timer = null; playBtn.textContent = "▶"; playBtn.setAttribute("aria-label", "Play");
+      document.querySelectorAll(".cell.now").forEach(c => c.classList.remove("now")); return; }
+    const ms = 60000 / +document.getElementById("bpm").value / 4;
+    timer = setInterval(tick, ms); playBtn.textContent = "■"; playBtn.setAttribute("aria-label", "Stop");
+  }
+  playBtn.onclick = togglePlay;
+  document.addEventListener("keydown", e => { if (e.code === "Space" && e.target.tagName !== "INPUT") { e.preventDefault(); togglePlay(); } });
+
+  // Live value labels
+  [["bpm","bpmv"],["sw","swv"],["mf","mfv"],["cr","crv"]].forEach(([i,o]) =>
+    document.getElementById(i).oninput = e => { document.getElementById(o).textContent = e.target.value; if (i === "bpm" && timer) { togglePlay(); togglePlay(); } });
+
+  document.getElementById("clear").onclick = () => document.querySelectorAll("#grid .cell").forEach(c => c.setAttribute("aria-pressed", "false"));
+  document.getElementById("visBtn").onclick = e => {
+    const v = document.getElementById("vis"), pub = v.textContent === "Private";
+    v.textContent = pub ? "Public" : "Private"; v.classList.toggle("public", pub);
+    e.target.textContent = pub ? "Make private" : "Make public";
+  };
+  document.getElementById("share").onclick = () => {
+    const t = document.getElementById("toast"); t.style.display = "block"; setTimeout(() => t.style.display = "none", 1400);
+  };
+
+  // Gallery cards
+  const beats = [["study hall","kishan",21,true],["3am ramen","nick",12,false],["cafe after rain","priya",9,false],["bus window","sam",7,false],["late library","ana",4,false],["sunday laundry","lee",2,false]];
+  document.getElementById("cards").innerHTML = beats.map(([t, by, likes, liked], i) => {
+    const mini = START.flat().map((on, j) => `<i class="${(on && (j + i) % 3) ? "on" : ""}"></i>`).join("");
+    return `<div class="card"><div class="mini">${mini}</div><b>${t}</b><span class="credit">by ${by}</span>
+      <div class="row2"><button class="btn" aria-label="Preview">▶</button><button class="btn like" aria-pressed="${liked}" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed')!=='true')">♥ ${likes}</button>
+      <span class="spacer"></span><button class="btn ghost" data-go="shared">Open</button></div></div>`;
+  }).join("");
+</script>
+</body>
+</html>
