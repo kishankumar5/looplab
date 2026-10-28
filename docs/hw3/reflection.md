@@ -20,6 +20,10 @@ The biggest surprise was how much the docs did on their own. The run without rul
 
 Small issues with checklists work well as prompts. Each issue is a unit of work an AI session can finish, and its acceptance criteria become the first failing tests. The branch and commit rules (`feature/5-step-grid`, `test(grid): ... (#5)`) make every AI-made change traceable back to an issue, which matters when two people and two AI sessions are working in the same repo. Milestones and the board also keep the AI's scope in check: the rules tell it to stop and ask if no issue matches the request, and the run with rules left playback alone, adding a `TODO(#6)` that points at the issue it belongs to.
 
+Scoping decisions mattered as much as the rules themselves. We changed our project idea twice before settling on LoopLab, and then moved live jam rooms out of the core scope because real-time sync was the riskiest part for a two-week build. Because live jam has no issue on the board, and the rules tell the AI to stop and ask when no issue matches a request, the AI can't drift into building it.
+
+The board also shapes how we work as a pair. Each of us owns whole features across the frontend, backend, and tests, and every PR is reviewed by the other person before merging. Reviewing PRs #20 and #21 showed that an AI-written PR still needs a human check on whether the work matches what we actually agreed on, not just whether the code runs.
+
 ## What worked, what didn't, and what we changed
 
 The rules raised our 12-point scorecard from 8 to 11.5 on the first try. Not everything worked:
@@ -27,17 +31,4 @@ The rules raised our 12-point scorecard from 8 to 11.5 on the first try. Not eve
 - **The "red" step was hollow.** The AI committed failing tests before the code, but they failed only because the code files didn't exist yet. That technically counts as test-first but proves very little. **Change:** the red step now requires stub files whose functions throw "not implemented", so tests fail on real assertions. On the rerun, all 21 tests failed on "not implemented" before the implementation commit.
 - **The AI couldn't read the issue.** It wasn't allowed to run `gh`, so it rebuilt the acceptance criteria from the PRD. **Change:** step 1 now says to read the issue with `gh issue view`, and to stop and ask if it can't, rather than guessing.
 - **Two rules clashed.** "Ask before adding a dependency" conflicted with "include tests" in a repo with no test tools. **Change:** test tools are now pre-approved.
-- **Smaller gaps:** a type-check error specific to Next.js 16 and a missing coverage script. Both are now written into the rules.
-
-The rerun with v1.1 scored 12 of 12 and reached 100% test coverage on `src/lib`. One gap remains open: the AI still doesn't screenshot its UI work, because launching a browser needs permission. It now says so instead of staying silent, which is what the rule asks for.
-
-The rules also cost something. The run with v1.1 rules took about three times as long as the run without, mostly on running tests before and after, lint, type checks, and separate commits. For a course that grades visible TDD history, that's a trade we accept. We also note that each condition ran only once, so some differences may be ordinary variation between runs.
-
-## What we'd add or change for Sprint 2
-
-- **Reference files instead of descriptions.** Once our first API route exists, the rules should say "copy the pattern in `src/app/api/beats/route.ts`." Pointing at real code is shorter and harder to misread than describing it.
-- **Folder-level rules.** `CLAUDE.md` is already long. Audio-engine rules (Tone.js scheduling, how to mock it in tests) belong in a small rules file inside `src/lib/audio/`, which loads only when the AI works there.
-- **Automated screenshots.** After issue #1 adds Playwright, the UI rule can say "run `npm run test:e2e -- --update-snapshots`" instead of asking for a manual screenshot.
-- **Shared permissions.** Decide together whether to commit a project settings file that lets the AI read GitHub issues without asking each time.
-- **PR size.** The v1.1 run produced a 640-line change, over our 400-line guideline, because test tooling arrived with the feature. Now that the tooling exists, feature PRs should stay smaller; we'll check that in the Sprint 1 retro.
-- **Keep the changelog going.** Every rule change gets a dated line explaining what went wrong. That log is how we'll know which rules are working.
+- **Smaller gaps:** a type-check error specific to Next.js 16 and a missing coverage script. Both
