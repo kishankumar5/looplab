@@ -132,7 +132,11 @@ over nested `if`s. Run `npm run lint` and `npm run typecheck` before every commi
 - Name tests by behavior: `it("clears the redo stack after a new edit")`.
 - Coverage goal: **80%+ lines for `src/lib/`**, enforced in CI. UI components: test behavior, not
   styling.
-- Commands: `npm test` (unit + integration), `npm run test:e2e`, `npm run test:coverage`.
+- Commands: `npm test` (unit + integration), `npm run test:e2e`, `npm run test:coverage`
+  (Vitest with `@vitest/coverage-v8`), `npm run typecheck`.
+- `typecheck` must be `next typegen && tsc --noEmit`. Next.js 16 generates route types such as
+  `LayoutProps`; plain `tsc` fails without them.
+- If a command above doesn't exist yet, add it to `package.json` as part of your change.
 
 ---
 
@@ -195,14 +199,21 @@ and use the token names, never raw hex values in components:
 
 ### Working an issue (follow these steps in order)
 
-1. Read the issue and the PRD user story it links to. List the acceptance criteria you'll cover.
+1. Read the issue with `gh issue view <N>` and the PRD user story it links to. List the acceptance
+   criteria you'll cover. If you were not given an issue number, find the matching issue with
+   `gh issue list --milestone "Sprint 1"`. If you can't run `gh` or no issue matches, **stop and ask
+   for the issue** instead of guessing the criteria from the PRD.
 2. Create a branch from up-to-date `main`.
-3. Write failing tests for the acceptance criteria. Run them, confirm they fail for the right
-   reason, commit.
-4. Implement the smallest code that makes them pass. Commit.
-5. Refactor if needed (tests stay green). Commit.
+3. **Red:** write failing tests for the acceptance criteria, plus **stub files** for the code under
+   test (real exports and types, bodies that `throw new Error("not implemented")`). Run the tests
+   and confirm they fail **on assertions or the "not implemented" error, not on a missing import**.
+   Commit the tests and stubs together.
+4. **Green:** implement the smallest code that makes them pass. Commit.
+5. **Refactor** if needed (tests stay green). Commit.
 6. Run `npm run lint && npm run typecheck && npm test` before pushing.
-7. Open a PR and fill in the template.
+7. For UI changes, run the app (`npm run dev`) and capture a screenshot of the changed screen for
+   the PR. If you can't take one, say so in your summary.
+8. Open a PR and fill in the template.
 
 ### Branch names
 
@@ -249,7 +260,8 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 - Keep the audio engine as a single long-lived instance; start Tone.js only after a user click
   (`Tone.start()` inside the Play handler).
 - Return 404 (not 403) for a private beat requested by a non-owner, so private beats can't be discovered.
-- Ask before adding a dependency, and say why in the PR.
+- Libraries in "Preferred libraries" below are pre-approved: install them when a task needs them.
+  Ask before adding anything else, and say why in the PR.
 
 ### Don't
 - Don't import `tone` anywhere except `src/lib/audio/`.
@@ -264,7 +276,8 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 
 ### Preferred libraries
 
-`tone`, `zod`, `next-auth@5`, `@prisma/client` + `prisma`, `bcryptjs`, `vitest`,
+`tone`, `zod`, `next-auth@5`, `@prisma/client` + `prisma`, `bcryptjs`, `vitest`, `@vitest/coverage-v8`,
+`jsdom`, `@vitejs/plugin-react`, `@testing-library/jest-dom`,
 `@testing-library/react`, `@testing-library/user-event`, `@playwright/test`, `swagger-ui-react`.
 
 ### Security requirements
@@ -296,3 +309,8 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 | Date | Change | Why |
 |---|---|---|
 | 2026-10-28 | v1: initial rules from PRD v1.0 and mockup | Project kickoff (HW3) |
+| 2026-10-28 | v1.1: TDD "red" step now requires stub files so tests fail on assertions, not missing imports | HW3 test: the first test commit failed only with "Failed to resolve import", which proves little |
+| 2026-10-28 | v1.1: step 1 says how to find the issue with `gh`, and to stop and ask if it can't | HW3 test: the AI couldn't open issue #5 and had to guess the acceptance criteria from the PRD |
+| 2026-10-28 | v1.1: documented `typecheck = next typegen && tsc --noEmit` and `@vitest/coverage-v8` | HW3 test: the AI lost time on a `LayoutProps` type error and skipped the coverage script |
+| 2026-10-28 | v1.1: test tooling is pre-approved; only other dependencies need asking | HW3 test: "ask before adding a dependency" conflicted with "include tests" when no test tools were installed |
+| 2026-10-28 | v1.1: UI changes need a screenshot (or an explicit note that none was taken) | HW3 test: the AI never looked at the page it built |
