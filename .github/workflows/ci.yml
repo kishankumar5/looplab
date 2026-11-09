@@ -101,6 +101,24 @@ jobs:
     name: E2E tests
     needs: build
     runs-on: ubuntu-latest
+    # Real flows (register, sign in, save) need a database and an Auth.js secret.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: looplab
+          POSTGRES_PASSWORD: looplab
+          POSTGRES_DB: looplab_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U looplab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://looplab:looplab@localhost:5432/looplab_e2e
+      # Throwaway value for CI only; real secrets live in Vercel's environment settings.
+      AUTH_SECRET: ci-only-not-a-real-secret-0123456789abcdef
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,6 +130,7 @@ jobs:
         with:
           name: next-build
           path: .next/
+      - run: npx prisma migrate deploy
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:

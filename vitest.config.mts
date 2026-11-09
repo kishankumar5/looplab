@@ -17,7 +17,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
-      exclude: ["src/lib/**/*.test.ts"],
+      // auth/index.ts only wires ./callbacks into Auth.js; it is covered by tests/e2e/auth.spec.ts.
+      exclude: ["src/lib/**/*.test.ts", "src/lib/auth/index.ts"],
       reporter: ["text", "html", "json-summary"],
       // CLAUDE.md testing strategy: 80%+ line coverage for src/lib, enforced in CI
       thresholds: { lines: 80 },

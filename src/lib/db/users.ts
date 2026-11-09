@@ -1,4 +1,5 @@
-import type { PrismaClient } from "@/generated/prisma/client";
+import bcrypt from "bcryptjs";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import type { RegisterInput } from "@/lib/validation/auth";
 import { prisma } from "./prisma";
 
@@ -17,11 +18,25 @@ export class EmailTakenError extends Error {
   }
 }
 
+const BCRYPT_COST = 10;
+const publicFields = { id: true, email: true, displayName: true, createdAt: true } as const;
+// Compared against when the email doesn't exist, so a missing account takes as long as a wrong password.
+const DUMMY_HASH = bcrypt.hashSync("looplab-dummy-password", BCRYPT_COST);
+
 /** Creates a user with a bcrypt-hashed password. Throws EmailTakenError for a duplicate email. */
 export async function createUser(input: RegisterInput, db: PrismaClient = prisma): Promise<PublicUser> {
-  void input;
-  void db;
-  throw new Error("not implemented");
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
+  try {
+    return await db.user.create({
+      data: { email: input.email, displayName: input.displayName, passwordHash },
+      select: publicFields,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new EmailTakenError();
+    }
+    throw error;
+  }
 }
 
 /** Returns the user if the email and password match, otherwise null. */
@@ -30,8 +45,10 @@ export async function verifyCredentials(
   password: string,
   db: PrismaClient = prisma,
 ): Promise<PublicUser | null> {
-  void email;
-  void password;
-  void db;
-  throw new Error("not implemented");
+  const row = await db.user.findUnique({ where: { email }, select: { ...publicFields, passwordHash: true } });
+  const matches = await bcrypt.compare(password, row?.passwordHash ?? DUMMY_HASH);
+  if (!row || !matches) return null;
+  const { passwordHash: _omit, ...user } = row;
+  void _omit;
+  return user;
 }
