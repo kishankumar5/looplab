@@ -19,9 +19,6 @@ const DEFAULT_STATUS: Record<ApiErrorCode, number> = {
 
 /** Builds the shared JSON error response used by every API route (PRD US-7). */
 export function apiError(code: ApiErrorCode, message: string, status?: number): Response {
-  void code;
-  void message;
-  void status;
-  void DEFAULT_STATUS;
-  throw new Error("not implemented");
+  const body: ApiErrorBody = { error: { code, message } };
+  return Response.json(body, { status: status ?? DEFAULT_STATUS[code] });
 }
