@@ -1,0 +1,10 @@
+// LoopLab database schema (PRD section 6, issue #3).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

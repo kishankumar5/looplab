@@ -10,6 +10,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    globalSetup: ["./tests/integration/global-setup.ts"],
+    // Integration tests share one test database, so run files one at a time.
+    fileParallelism: false,
     include: ["src/**/*.test.{ts,tsx}", "tests/integration/**/*.test.ts"],
     coverage: {
       provider: "v8",
