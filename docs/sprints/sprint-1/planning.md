@@ -1,8 +1,8 @@
-# Sprint 1: Mon Nov 9 to Tue Nov 10, 2026
+# Sprint 1 planning (Mon Nov 9 to Tue Nov 10, 2026)
 
 ## Planning (Nov 9, both partners)
 
-Planned together on Nov 9 over WhatsApp. Nicholas proposed the split; Kishan agreed.
+Planned together on Nov 9 over WhatsApp: Nicholas proposed the split and order; Kishan agreed and added the working agreements below.
 
 **Sprint goal:** a deployed app where you can build a beat on the grid, hear it with tempo, swing, and lo-fi effects, and create an account. Test tooling and CI run on every PR.
 
@@ -24,41 +24,10 @@ Planned together on Nov 9 over WhatsApp. Nicholas proposed the split; Kishan agr
 3. #5 before #6, #7, #10 (sound and effects attach to the grid's state).
 4. #2 needs the database connection string for preview and production.
 
-## Standups
+## Working agreements (added from Kishan's reply, Nov 9)
 
-Format: **Done** / **Next** / **Blocked**.
-
-### Mon Nov 9, morning
-- **Nicholas:** **Done:** sprint planning with Kishan; assigned all issues, moved Sprint 1 to end Nov 10, moved #8/#9 to Sprint 2 and #10 to Sprint 1. **Next:** #1 test tooling + CI (PR #22), then #3 database. **Blocked:** need a Neon database and Vercel access set up for #3 and #2.
-- **Kishan:**
-
-### Mon Nov 9, evening
-- **Nicholas:**
-- **Kishan:**
-
-### Tue Nov 10, morning
-- **Nicholas:**
-- **Kishan:**
-
-### Tue Nov 10, evening
-- **Nicholas:**
-- **Kishan:**
-
-## Retrospective (Tue Nov 10)
-
-**Completed:** _issues closed / points_
-
-**What went well**
-- Nicholas:
-- Kishan:
-
-**What didn't**
-- Nicholas:
-- Kishan:
-
-**Partner feedback**
-- Nicholas on Kishan:
-- Kishan on Nicholas:
-
-**Changes for Sprint 2** (including any CLAUDE.md rule changes)
--
+1. **Rules restructure (Kishan, Sprint 1):** shared rules move into `AGENTS.md`; `CLAUDE.md` becomes `@AGENTS.md` plus Claude-specific notes; UI rules move to `DESIGN.md`; add `docs/decisions/`, issue templates, and `.env.example`. Logged as rules v1.2. Nicholas avoids editing `CLAUDE.md` until it merges.
+2. **One beat data shape:** Kishan's first #5 PR defines the `BeatPattern` type and its Zod schema (`src/lib/sequencer`, `src/lib/validation`). Nicholas's #3 and #8 build on that schema instead of defining their own.
+3. **E2E per feature:** #1 sets up Playwright; each of us adds at least one E2E test for the main flow of our own features.
+4. **Feature freeze Thursday Nov 12 at noon.** The afternoon is for the README, diagrams, demo video, and individual reflections.
+5. **Reviews within about 2 hours** so nothing sits blocked in a 2-day sprint.

@@ -1,4 +1,4 @@
-# Sprint 2: Wed Nov 11 to Thu Nov 12, 2026
+# Sprint 2 planning (Wed Nov 11 to Thu Nov 12, 2026)
 
 ## Planning (Nov 9, both partners; revisit at the Sprint 1 retro)
 
@@ -19,41 +19,7 @@
 
 **Order and dependencies**
 1. #8 early on Wednesday: #9 (share) and #14 (remix) build on saved beats.
-2. Kishan starts with #11 and #12 while #8 is in progress.
+2. Kishan starts with #11 and #12 (undo/redo is our main complex-state evidence, so it can't slip), then #9 after #8 merges.
 3. #15 last among features, so the spec covers every endpoint.
 
-Also due Thursday: 10-minute demo video, partner contribution log, individual 300-word reflections.
-
-## Standups
-
-### Wed Nov 11, morning
-- **Nicholas:**
-- **Kishan:**
-
-### Wed Nov 11, evening
-- **Nicholas:**
-- **Kishan:**
-
-### Thu Nov 12, morning
-- **Nicholas:**
-- **Kishan:**
-
-### Thu Nov 12, evening
-- **Nicholas:**
-- **Kishan:**
-
-## Retrospective (Thu Nov 12)
-
-**Completed:** _issues closed / points_
-
-**What went well**
-- Nicholas:
-- Kishan:
-
-**What didn't**
-- Nicholas:
-- Kishan:
-
-**Partner feedback**
-- Nicholas on Kishan:
-- Kishan on Nicholas:
+Feature freeze Thursday at noon. Also due Thursday: 10-minute demo video, partner contribution log, individual 300-word reflections.
