@@ -7,11 +7,11 @@ Format: **Done** / **Next** / **Blocked**. Morning and evening, each partner.
 - **Kishan:**
 
 ### Mon Nov 9, evening
-- **Nicholas:**
+- **Nicholas:** **Done:** #1 test tooling + 4-stage CI (PR #22), #3 Postgres + Prisma schema (PR #24), #4 register/sign in/sign out with an E2E test (PR #25); all green in CI, all test-first. Sprint docs (PR #23). **Next:** #2 deploy code (migrations on deploy, `.env.example`, README). **Blocked:** #2 needs Vercel + Neon connected on Kishan's account; my PRs need review before they can merge.
 - **Kishan:**
 
 ### Tue Nov 10, morning
-- **Nicholas:**
+- **Nicholas:** **Done:** confirmed CI green on #22, #24, #25. **Next:** #2 code side; then Sprint 2 work that doesn't need the beat format (#13 like/list API). **Blocked:** no reviews yet on #22 to #25 (#22 also unblocks Kishan's #5); #8 waits on the `BeatPattern` schema from #5; Vercel still not connected.
 - **Kishan:**
 
 ### Tue Nov 10, evening
