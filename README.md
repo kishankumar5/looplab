@@ -27,12 +27,7 @@ docker run -d --name looplab-db -e POSTGRES_USER=looplab -e POSTGRES_PASSWORD=lo
 docker exec looplab-db psql -U looplab -c "CREATE DATABASE looplab_test;"
 ```
 
-Then create a git-ignored `.env` file:
-
-```bash
-DATABASE_URL="postgresql://looplab:looplab@localhost:5433/looplab"
-DATABASE_URL_TEST="postgresql://looplab:looplab@localhost:5433/looplab_test"
-```
+Then copy `.env.example` to `.env` (git-ignored) and set `AUTH_SECRET` (`openssl rand -base64 32`).
 
 and apply the schema: `npm run db:migrate`. `npm test` applies migrations to the test database on its own; without `DATABASE_URL_TEST`, the integration tests are skipped.
 
@@ -46,3 +41,22 @@ and apply the schema: `npm run db:migrate`. `npm test` applies migrations to the
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 
 Setup, deployment, API docs, and architecture diagrams will be added during Sprint 1 and 2.
+
+## Deployment
+
+LoopLab deploys to **Vercel** with a **Neon** Postgres database.
+
+| Environment | When | Database |
+|---|---|---|
+| Production | Every push to `main` | Neon main branch |
+| Preview | Every pull request (Vercel comments the URL on the PR) | Its own Neon branch, created by the Neon integration |
+
+**Production URL:** _added once Vercel is connected_
+
+How it's wired:
+1. The Vercel project imports this repo; Vercel's GitHub app builds every PR and every push to `main`.
+2. The Neon integration (Vercel > Storage > Neon) sets `DATABASE_URL` for Production and gives each Preview deployment its own database branch.
+3. `AUTH_SECRET` is set by hand in Vercel's environment variables, separately for Production and Preview.
+4. Vercel runs `npm run vercel-build` (`prisma migrate deploy && next build`), so every deploy applies pending migrations before building.
+5. GitHub Actions CI (lint, tests, build, E2E) runs on the same PRs, independent of Vercel.
+
