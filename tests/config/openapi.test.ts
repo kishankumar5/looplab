@@ -8,18 +8,20 @@ const ROOT = join(__dirname, "..", "..");
 const API_DIR = join(ROOT, "src", "app", "api");
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
-type Operation = { responses?: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> };
+type Method = (typeof METHODS)[number];
+type Response = { $ref?: string; content?: Record<string, { schema?: { $ref?: string } }> };
+type Operation = { responses?: Record<string, Response> };
 type Spec = {
   openapi: string;
   info: { title: string; version: string };
   paths: Record<string, Partial<Record<Lowercase<(typeof METHODS)[number]>, Operation>> & { "x-managed-by"?: string }>;
-  components?: { schemas?: Record<string, unknown> };
+  components?: { schemas?: Record<string, unknown>; responses?: Record<string, Response> };
 };
 
 const spec = parse(readFileSync(join(ROOT, "docs", "openapi.yaml"), "utf8")) as Spec;
 
 /** Every route.ts under src/app/api as { path: "/api/beats/{id}/like", methods: ["POST", "DELETE"] }. */
-function codeRoutes(dir = API_DIR): { path: string; methods: string[] }[] {
+function codeRoutes(dir = API_DIR): { path: string; methods: Method[] }[] {
   return readdirSync(dir).flatMap((name) => {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) return codeRoutes(full);
@@ -63,7 +65,9 @@ describe("docs/openapi.yaml (issue #15)", () => {
       for (const method of METHODS) {
         const op = item[method.toLowerCase() as Lowercase<typeof method>];
         for (const [status, response] of Object.entries(op?.responses ?? {})) {
-          const ref = response.content?.["application/json"]?.schema?.$ref;
+          // Follow shared responses like { $ref: "#/components/responses/NotFound" }.
+          const resolved = response.$ref ? spec.components?.responses?.[response.$ref.split("/").pop()!] : response;
+          const ref = resolved?.content?.["application/json"]?.schema?.$ref;
           if (status.startsWith("4") && ref !== "#/components/schemas/ErrorResponse") wrong.push(`${method} ${path} ${status}`);
         }
       }
