@@ -13,7 +13,7 @@ export default defineConfig({
     globalSetup: ["./tests/integration/global-setup.ts"],
     // Integration tests share one test database, so run files one at a time.
     fileParallelism: false,
-    include: ["src/**/*.test.{ts,tsx}", "tests/integration/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "tests/integration/**/*.test.ts", "tests/config/**/*.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
