@@ -15,6 +15,6 @@ Format: **Done** / **Next** / **Blocked**. Morning and evening, each partner.
 - **Kishan:**
 
 ### Tue Nov 10, evening
-- **Nicholas:**
+- **Nicholas:** **Done:** #2 code half (PR #26: `.env.example` with a test, migrations on every Vercel deploy, deployment docs); pulled Sprint 2 work forward since I was blocked: #13 gallery + likes (PR #27), #15 OpenAPI spec + `/api-docs` (PR #28), #17 architecture and database diagrams (PR #29). All test-first, all green in CI. **Next:** #8 save / My Beats, using the beat format from PRD section 6. **Blocked:** still no reviews on PRs #22 to #29, so nothing has merged; Vercel not connected, so #2 can't close.
 - **Kishan:**
 

@@ -2,19 +2,29 @@
 
 ## Retrospective (Tue Nov 10)
 
-**Completed:** _issues closed / points_
+**Completed:** 0 issues closed, because no PR was reviewed or merged during the sprint.
+**Built and green in CI, waiting for review:** Nicholas 4 of 4 Sprint 1 issues (#1, #3, #4, and the code half of #2), plus 3 Sprint 2 items pulled forward (#13, #15, #17 diagrams). Kishan: _(fill in)_.
+
+| Planned | Points | Built (PR, CI green) | Merged |
+|---|---|---|---|
+| Nicholas: #1, #3, #4, #2 | 13 | 13 (#2 waits on Vercel access) | 0 |
+| Kishan: #5, #6, #7, #10 | 13 | _(fill in)_ | 0 |
 
 **What went well**
-- Nicholas:
+- Nicholas: Test-first worked well with Claude Code. Every PR has a failing-test commit before the code (the v1.1 "stubs, not missing imports" rule held up), CI caught nothing surprising, and coverage on `src/lib` stayed at 98% or more. Writing E2E tests for each feature (login, gallery, API docs) caught a real bug: Swagger UI's operations never finished loading under Turbopack.
 - Kishan:
 
 **What didn't**
-- Nicholas:
+- Nicholas: Nothing merged. I stacked 8 PRs on top of each other while waiting for reviews, which makes them harder to review and means one requested change can ripple through the stack. Vercel and Neon are under Kishan's account, so I couldn't finish #2 on my own. Next.js 16 surprises cost time: Cache Components needs `<Suspense>` + `connection()` around anything that reads the session, Prisma 7 needs a manual `prisma generate` after migrating, and `prisma init` silently installs AI skill files into `.claude/`.
 - Kishan:
 
 **Partner feedback**
-- Nicholas on Kishan:
+- Nicholas on Kishan: _(draft, Nicholas to edit)_ We agreed on the split and the 2-hour review window on Nov 9, but I haven't seen reviews, pushes, or the Vercel setup since. I'd rather hear "I'm stuck" or "I'm swamped" early so we can re-split work. The grid and audio (#5, #6) are the heart of the demo, and everything in Sprint 2 depends on them.
 - Kishan on Nicholas:
 
 **Changes for Sprint 2** (including any CLAUDE.md rule changes)
--
+- **Merge as we go, no more stacking:** review the existing stack (#22 → #24 → #25 → #26 → #27 → #28 → #29) first thing Wednesday, then one PR at a time.
+- **If a PR waits more than 2 hours, call instead of messaging.**
+- **Unblock #8:** Nicholas defines `beatPatternSchema` from PRD section 6 (if Kishan hasn't pushed his); #5 imports it.
+- **Re-check scope at Wednesday noon:** if #5 and #6 aren't in review by then, re-split Sprint 2 so a playable editor exists before the Thursday noon feature freeze.
+- **CLAUDE.md additions** (for the v1.2 restructure): wrap session reads in `<Suspense>` and call `connection()` first; use `swagger-ui-dist`, not `swagger-ui-react`; E2E tests seed data with plain SQL via `pg` (Playwright can't load the Prisma client); watch for `prisma init` adding files to `.claude/`.
