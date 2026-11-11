@@ -1,7 +1,10 @@
 import { STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type TrackId } from "@/lib/validation/beat";
 
 /** Every edit the editor can make to a beat. `step` is 0-based. */
-export type SequencerAction = { type: "toggleStep"; track: TrackId; step: number } | { type: "clear" };
+export type SequencerAction =
+  | { type: "toggleStep"; track: TrackId; step: number }
+  | { type: "clear" }
+  | { type: "setTempo"; bpm: number };
 
 /**
  * The editor's single reducer (PRD US-2). Pure: returns a new pattern and never mutates `state`,
@@ -13,7 +16,15 @@ export function sequencerReducer(state: BeatPattern, action: SequencerAction): B
       return toggleStep(state, action.track, action.step);
     case "clear":
       return clear(state);
+    case "setTempo":
+      return setTempo(state, action.bpm);
   }
+}
+
+function setTempo(state: BeatPattern, bpm: number): BeatPattern {
+  void state;
+  void bpm;
+  throw new Error("not implemented");
 }
 
 function toggleStep(state: BeatPattern, track: TrackId, step: number): BeatPattern {

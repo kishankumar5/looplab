@@ -4,10 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultPattern } from "@/lib/validation/beat";
 import { StepGrid } from "./StepGrid";
 
-function renderGrid(pattern = defaultPattern()) {
+function renderGrid(pattern = defaultPattern(), playheadStep: number | null = null) {
   const onToggleStep = vi.fn();
-  render(<StepGrid pattern={pattern} onToggleStep={onToggleStep} />);
+  render(<StepGrid pattern={pattern} playheadStep={playheadStep} onToggleStep={onToggleStep} />);
   return { onToggleStep, grid: screen.getByRole("group", { name: "Step grid" }) };
+}
+
+/** Labels of the cells marked as the playhead column. */
+function playheadCells() {
+  return screen
+    .getAllByRole("button")
+    .filter((cell) => cell.hasAttribute("data-playhead"))
+    .map((cell) => cell.getAttribute("aria-label"));
 }
 
 describe("StepGrid", () => {
@@ -56,5 +64,15 @@ describe("StepGrid", () => {
     expect(onToggleStep).toHaveBeenCalledTimes(2);
     expect(onToggleStep).toHaveBeenNthCalledWith(1, "bass", 2);
     expect(onToggleStep).toHaveBeenNthCalledWith(2, "bass", 2);
+  });
+
+  it("highlights the playhead's column in every row", () => {
+    renderGrid(defaultPattern(), 4);
+    expect(playheadCells()).toEqual(["Kick step 5", "Snare step 5", "Hi-hat step 5", "Bass step 5", "Synth step 5"]);
+  });
+
+  it("highlights no column when stopped", () => {
+    renderGrid(defaultPattern(), null);
+    expect(playheadCells()).toEqual([]);
   });
 });

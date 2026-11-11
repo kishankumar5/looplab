@@ -3,6 +3,8 @@ import { StepCell } from "./StepCell";
 
 export interface StepGridProps {
   pattern: BeatPattern;
+  /** 0-based step the loop is playing, highlighted as the playhead; null or omitted when stopped. */
+  playheadStep?: number | null;
   /** `step` is 0-based. */
   onToggleStep: (track: TrackId, step: number) => void;
 }
