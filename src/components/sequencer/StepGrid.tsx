@@ -1,5 +1,6 @@
 import { STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type TrackId } from "@/lib/validation/beat";
 import { StepCell } from "./StepCell";
+import { TRACK_LOOKS } from "./tracks";
 
 export interface StepGridProps {
   pattern: BeatPattern;
@@ -9,40 +10,44 @@ export interface StepGridProps {
   onToggleStep: (track: TrackId, step: number) => void;
 }
 
-const TRACK_NAMES: Record<TrackId, string> = {
-  kick: "Kick",
-  snare: "Snare",
-  hihat: "Hi-hat",
-  bass: "Bass",
-  synth: "Synth",
-};
-
 /** Steps are shown in 4 blocks of 4 so beats are easy to count (PRD US-2): [[0..3], [4..7], ...]. */
 const STEPS_PER_BLOCK = 4;
 const BLOCKS = Array.from({ length: STEPS_PER_BAR / STEPS_PER_BLOCK }, (_, b) =>
   Array.from({ length: STEPS_PER_BLOCK }, (_, i) => b * STEPS_PER_BLOCK + i),
 );
 
-// Row header, then one column per block. The gap between blocks (16px) is wider than the gap
-// between cells (5px), which is the visual break after every 4th step.
-const ROW = "grid min-w-[640px] grid-cols-[150px_repeat(4,1fr)] items-center gap-x-4";
-const BLOCK = "grid grid-cols-4 gap-[5px]";
+// Row header, then one column per block. Rows touch, so the shaded blocks (below) run as one band
+// from the step numbers to the last row. Blocks are padded and spaced apart, which is the visual
+// break after every 4th step.
+const ROW = "grid min-w-[640px] grid-cols-[150px_repeat(4,1fr)] items-center gap-x-2";
+
+type Edge = "top" | "middle" | "bottom";
+const EDGE_PADDING: Record<Edge, string> = {
+  top: "rounded-t-lg pt-1.5 pb-[3px]",
+  middle: "py-[3px]",
+  bottom: "rounded-b-lg pt-[3px] pb-1.5",
+};
+
+/** Blocks 2 and 4 are shaded, so 1-4, 5-8, 9-12, 13-16 are easy to tell apart. */
+function blockClass(blockIndex: number, edge: Edge) {
+  const band = blockIndex % 2 === 1 ? "bg-text/5" : "";
+  return `grid grid-cols-4 gap-[5px] px-1.5 ${EDGE_PADDING[edge]} ${band}`;
+}
 
 /** The 5 x 16 step grid (mockup Editor screen, PRD US-2). */
 export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGridProps) {
   return (
     <div role="group" aria-label="Step grid" className="overflow-x-auto rounded-[10px] bg-panel p-3">
       <StepNumbers playheadStep={playheadStep} />
-      {TRACK_IDS.map((track) => (
-        <div key={track} className={`${ROW} mb-1.5 last:mb-0`}>
-          {/* TODO(#11): volume slider and mute button */}
-          <span className="text-sm">{TRACK_NAMES[track]}</span>
-          {BLOCKS.map((block) => (
-            <div key={block[0]} className={BLOCK}>
+      {TRACK_IDS.map((track, row) => (
+        <div key={track} className={ROW}>
+          <TrackName track={track} />
+          {BLOCKS.map((block, b) => (
+            <div key={block[0]} className={blockClass(b, row === TRACK_IDS.length - 1 ? "bottom" : "middle")}>
               {block.map((step) => (
                 <StepCell
                   key={step}
-                  trackName={TRACK_NAMES[track]}
+                  track={track}
                   step={step}
                   on={pattern.tracks[track].steps[step]}
                   playhead={step === playheadStep}
@@ -57,15 +62,33 @@ export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGri
   );
 }
 
-/** Column numbers 1 to 16 above the grid. Hidden from screen readers: each cell's label has its number. */
-function StepNumbers({ playheadStep }: { playheadStep: number | null }) {
+function TrackName({ track }: { track: TrackId }) {
+  const look = TRACK_LOOKS[track];
   return (
-    <div aria-hidden className={`${ROW} mb-1 text-[10px] text-muted`}>
+    <span className="flex items-center gap-2 text-sm">
+      <span aria-hidden className={`size-2 shrink-0 rounded-full ${look.dot}`} />
+      {look.name}
+      {/* TODO(#11): volume slider and mute button */}
+    </span>
+  );
+}
+
+/**
+ * Column numbers 1 to 16 above the grid; the first of each beat (1, 5, 9, 13) is bolder.
+ * Hidden from screen readers: each cell's label has its number.
+ */
+function StepNumbers({ playheadStep }: { playheadStep: number | null }) {
+  const numberClass = (step: number) => {
+    if (step === playheadStep) return "font-bold text-accent-2";
+    return step % STEPS_PER_BLOCK === 0 ? "font-bold text-text" : "";
+  };
+  return (
+    <div aria-hidden className={`${ROW} text-[10px] text-muted`}>
       <span />
-      {BLOCKS.map((block) => (
-        <div key={block[0]} className={BLOCK}>
+      {BLOCKS.map((block, b) => (
+        <div key={block[0]} className={blockClass(b, "top")}>
           {block.map((step) => (
-            <span key={step} className={`text-center ${step === playheadStep ? "text-accent-2" : ""}`}>
+            <span key={step} className={`text-center ${numberClass(step)}`}>
               {step + 1}
             </span>
           ))}
