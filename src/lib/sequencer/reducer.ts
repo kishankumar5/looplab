@@ -1,4 +1,4 @@
-import { STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type TrackId } from "@/lib/validation/beat";
+import { MAX_BPM, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type TrackId } from "@/lib/validation/beat";
 
 /** Every edit the editor can make to a beat. `step` is 0-based. */
 export type SequencerAction =
@@ -21,10 +21,14 @@ export function sequencerReducer(state: BeatPattern, action: SequencerAction): B
   }
 }
 
+/**
+ * Whole BPM inside the PRD range, like a saved beat stores. Returns `state` itself for a no-op,
+ * so undo/redo history doesn't fill with empty changes.
+ */
 function setTempo(state: BeatPattern, bpm: number): BeatPattern {
-  void state;
-  void bpm;
-  throw new Error("not implemented");
+  if (!Number.isFinite(bpm)) return state;
+  const next = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(bpm)));
+  return next === state.bpm ? state : { ...state, bpm: next };
 }
 
 function toggleStep(state: BeatPattern, track: TrackId, step: number): BeatPattern {

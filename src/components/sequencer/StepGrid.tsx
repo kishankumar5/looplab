@@ -29,10 +29,10 @@ const ROW = "grid min-w-[640px] grid-cols-[150px_repeat(4,1fr)] items-center gap
 const BLOCK = "grid grid-cols-4 gap-[5px]";
 
 /** The 5 x 16 step grid (mockup Editor screen, PRD US-2). */
-export function StepGrid({ pattern, onToggleStep }: StepGridProps) {
+export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGridProps) {
   return (
     <div role="group" aria-label="Step grid" className="overflow-x-auto rounded-[10px] bg-panel p-3">
-      <StepNumbers />
+      <StepNumbers playheadStep={playheadStep} />
       {TRACK_IDS.map((track) => (
         <div key={track} className={`${ROW} mb-1.5 last:mb-0`}>
           {/* TODO(#11): volume slider and mute button */}
@@ -45,6 +45,7 @@ export function StepGrid({ pattern, onToggleStep }: StepGridProps) {
                   trackName={TRACK_NAMES[track]}
                   step={step}
                   on={pattern.tracks[track].steps[step]}
+                  playhead={step === playheadStep}
                   onToggle={() => onToggleStep(track, step)}
                 />
               ))}
@@ -57,14 +58,14 @@ export function StepGrid({ pattern, onToggleStep }: StepGridProps) {
 }
 
 /** Column numbers 1 to 16 above the grid. Hidden from screen readers: each cell's label has its number. */
-function StepNumbers() {
+function StepNumbers({ playheadStep }: { playheadStep: number | null }) {
   return (
     <div aria-hidden className={`${ROW} mb-1 text-[10px] text-muted`}>
       <span />
       {BLOCKS.map((block) => (
         <div key={block[0]} className={BLOCK}>
           {block.map((step) => (
-            <span key={step} className="text-center">
+            <span key={step} className={`text-center ${step === playheadStep ? "text-accent-2" : ""}`}>
               {step + 1}
             </span>
           ))}

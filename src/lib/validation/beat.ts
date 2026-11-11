@@ -5,6 +5,11 @@ export const TRACK_IDS = ["kick", "snare", "hihat", "bass", "synth"] as const;
 export type TrackId = (typeof TRACK_IDS)[number];
 export const STEPS_PER_BAR = 16;
 
+/** Tempo range and default (PRD US-3). */
+export const MIN_BPM = 60;
+export const MAX_BPM = 140;
+export const DEFAULT_BPM = 82;
+
 const percent = z.number().int().min(0).max(100);
 
 const trackSchema = z.object({
@@ -19,7 +24,7 @@ const trackSchema = z.object({
  */
 export const beatPatternSchema = z.object({
   version: z.literal(1),
-  bpm: z.number().int().min(60).max(140),
+  bpm: z.number().int().min(MIN_BPM).max(MAX_BPM),
   swing: z.number().int().min(0).max(60),
   tracks: z.object({
     kick: trackSchema,
@@ -52,7 +57,7 @@ export function defaultPattern(): BeatPattern {
   const track = (): Track => ({ steps: Array(STEPS_PER_BAR).fill(false), volume: 80, muted: false });
   return {
     version: 1,
-    bpm: 82,
+    bpm: DEFAULT_BPM,
     swing: 0,
     tracks: { kick: track(), snare: track(), hihat: track(), bass: track(), synth: track() },
     effects: { muffle: 0, crackle: 0 },
