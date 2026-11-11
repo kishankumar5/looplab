@@ -9,6 +9,9 @@ CS6983 AI Coding, Fall 2026, Project 2. Team: Kishan Kumar Selvakumar Anandraj a
 | [docs/PRD.md](docs/PRD.md) | Requirements, user stories, acceptance criteria, data model, API |
 | [docs/mockup/index.html](docs/mockup/index.html) | Clickable mockup of every screen (open in a browser) |
 | [CLAUDE.md](CLAUDE.md) | Shared AI rules file: stack, architecture, conventions, workflow |
+| [docs/architecture.md](docs/architecture.md) | System diagram, request flows, and the database schema diagram |
+| [docs/openapi.yaml](docs/openapi.yaml) | API spec (interactive at `/api-docs` on any deployment) |
+| [docs/sprints/](docs/sprints/) | Sprint plans, standups, and retrospectives |
 
 ## Run locally
 
