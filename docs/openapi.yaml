@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: LoopLab API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Public API for LoopLab, a browser-based lo-fi beat maker (PRD US-7).
 
@@ -21,6 +21,7 @@ servers:
     description: This deployment
 tags:
   - name: Accounts
+  - name: Beats
   - name: Gallery
   - name: Likes
   - name: Docs
@@ -157,6 +158,103 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/GalleryPage" }
         "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [Beats]
+      summary: Save a new beat
+      description: Saves the pattern under a title. New beats are always private.
+      operationId: createBeat
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBeatRequest" }
+      responses:
+        "201":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [beat]
+                properties:
+                  beat: { $ref: "#/components/schemas/BeatDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/beats/{id}:
+    parameters:
+      - $ref: "#/components/parameters/BeatId"
+    get:
+      tags: [Beats]
+      summary: Get a beat
+      description: A public beat, or your own private one. Anyone else gets 404. Used by the editor and the share page.
+      operationId: getBeat
+      responses:
+        "200":
+          description: The beat.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [beat]
+                properties:
+                  beat: { $ref: "#/components/schemas/BeatDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Beats]
+      summary: Update a beat (owner only)
+      description: Change the title, the pattern, visibility, or any mix. Non-owners get 404.
+      operationId: updateBeat
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateBeatRequest" }
+            example: { title: rainy window, isPublic: true }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [beat]
+                properties:
+                  beat: { $ref: "#/components/schemas/BeatDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Beats]
+      summary: Delete a beat (owner only)
+      description: Remixes of this beat are kept; their credit changes to "a beat that is no longer available".
+      operationId: deleteBeat
+      security: [{ sessionCookie: [] }]
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/me/beats:
+    get:
+      tags: [Beats]
+      summary: List my beats
+      description: Your beats, most recently edited first (the My Beats page).
+      operationId: listMyBeats
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Your beats.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [beats]
+                properties:
+                  beats: { type: array, items: { $ref: "#/components/schemas/MyBeat" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /api/beats/{id}/like:
     parameters:
@@ -276,7 +374,8 @@ components:
       type: object
       description: |
         A beat is data, not audio (PRD section 6): 5 tracks of 16 on/off steps plus tempo, swing,
-        volumes, and lo-fi effects. Validated by the app's beatPatternSchema.
+        volumes, and lo-fi effects. Validated by beatPatternSchema in src/lib/validation/beat.ts.
+      required: [version, bpm, swing, tracks, effects]
       properties:
         version: { type: integer, const: 1 }
         bpm: { type: integer, minimum: 60, maximum: 140 }
@@ -301,6 +400,60 @@ components:
         steps: { type: array, items: { type: boolean }, minItems: 16, maxItems: 16 }
         volume: { type: integer, minimum: 0, maximum: 100 }
         muted: { type: boolean }
+
+    CreateBeatRequest:
+      type: object
+      required: [pattern]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80, default: Untitled beat, description: Trimmed. }
+        pattern: { $ref: "#/components/schemas/BeatPattern" }
+
+    UpdateBeatRequest:
+      type: object
+      minProperties: 1
+      description: Send at least one field.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80 }
+        pattern: { $ref: "#/components/schemas/BeatPattern" }
+        isPublic: { type: boolean }
+
+    BeatDetail:
+      type: object
+      required: [id, title, pattern, isPublic, isOwner, creator, remixedFrom, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        pattern: { $ref: "#/components/schemas/BeatPattern" }
+        isPublic: { type: boolean }
+        isOwner: { type: boolean, description: True when the signed-in viewer owns this beat. }
+        creator:
+          type: object
+          properties:
+            displayName: { type: string }
+        remixedFrom:
+          description: The original, if this is a remix and the original is still public. Otherwise null.
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                id: { type: string }
+                title: { type: string }
+                creator:
+                  type: object
+                  properties:
+                    displayName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    MyBeat:
+      type: object
+      required: [id, title, bpm, isPublic, updatedAt]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        bpm: { type: integer }
+        isPublic: { type: boolean }
+        updatedAt: { type: string, format: date-time }
 
     GalleryBeat:
       type: object

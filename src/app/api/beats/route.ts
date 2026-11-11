@@ -1,6 +1,8 @@
 import { apiError } from "@/lib/api/errors";
 import { getCurrentUserId } from "@/lib/auth";
-import { listPublicBeats } from "@/lib/db/beats";
+import { parseJsonBody } from "@/lib/api/validation";
+import { createBeat, listPublicBeats } from "@/lib/db/beats";
+import { createBeatSchema } from "@/lib/validation/beat";
 import { galleryQuerySchema } from "@/lib/validation/gallery";
 
 /** GET /api/beats?sort=new|likes&page=N: list public beats (PRD US-6). No sign-in needed. */
@@ -16,6 +18,9 @@ export async function GET(request: Request): Promise<Response> {
 
 /** POST /api/beats: save a new beat (PRD US-4). Signed-in only; new beats are private. */
 export async function POST(request: Request): Promise<Response> {
-  void request;
-  throw new Error("not implemented");
+  const userId = await getCurrentUserId();
+  if (!userId) return apiError("UNAUTHORIZED", "Sign in to save beats");
+  const parsed = await parseJsonBody(request, createBeatSchema);
+  if (parsed.error) return parsed.error;
+  return Response.json({ beat: await createBeat(userId, parsed.data) }, { status: 201 });
 }
