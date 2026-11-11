@@ -1,7 +1,7 @@
 # CI pipeline for LoopLab (issue #1).
 # Runs on every pull request and every push to main, in four stages:
 #   1. quality: lint + typecheck
-#   2. test:    unit/integration tests with the 80% coverage gate on src/lib
+#   2. test:    unit + integration tests (against a Postgres service) with the 80% coverage gate on src/lib
 #   3. build:   production build (uploaded for the E2E stage)
 #   4. e2e:     Playwright against the production build
 name: CI
@@ -39,6 +39,23 @@ jobs:
     name: Unit and integration tests
     needs: quality
     runs-on: ubuntu-latest
+    # Integration tests run against a throwaway Postgres; migrations are applied by
+    # tests/integration/global-setup.ts, which also proves they work on an empty database.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: looplab
+          POSTGRES_PASSWORD: looplab
+          POSTGRES_DB: looplab_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U looplab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgresql://looplab:looplab@localhost:5432/looplab_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
