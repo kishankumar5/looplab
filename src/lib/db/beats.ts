@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { BeatPattern } from "@/lib/validation/beat";
 import { GALLERY_PAGE_SIZE, type GalleryQuery } from "@/lib/validation/gallery";
 import { prisma } from "./prisma";
 
@@ -106,4 +107,81 @@ export async function unlikeBeat(userId: string, beatId: string, db: PrismaClien
   await assertCanSee(userId, beatId, db);
   await db.like.deleteMany({ where: { userId, beatId } });
   return likeState(userId, beatId, db);
+}
+
+/** A beat as its page shows it: the editor (owner) or the listen-only share page. */
+export interface BeatDetail {
+  id: string;
+  title: string;
+  pattern: BeatPattern;
+  isPublic: boolean;
+  isOwner: boolean;
+  creator: { displayName: string };
+  remixedFrom: { id: string; title: string; creator: { displayName: string } } | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** A row on My Beats (PRD US-4). */
+export interface MyBeat {
+  id: string;
+  title: string;
+  bpm: number;
+  isPublic: boolean;
+  updatedAt: Date;
+}
+
+export interface BeatChanges {
+  title?: string;
+  pattern?: BeatPattern;
+  isPublic?: boolean;
+}
+
+/** Saves a new private beat for the owner. */
+export async function createBeat(
+  ownerId: string,
+  data: { title?: string; pattern: BeatPattern },
+  db: PrismaClient = prisma,
+): Promise<BeatDetail> {
+  void ownerId;
+  void data;
+  void db;
+  throw new Error("not implemented");
+}
+
+/** The owner's beats, most recently edited first. */
+export async function listMyBeats(ownerId: string, db: PrismaClient = prisma): Promise<MyBeat[]> {
+  void ownerId;
+  void db;
+  throw new Error("not implemented");
+}
+
+/** A beat the viewer may see (public, or their own). Throws BeatNotFoundError otherwise. */
+export async function getBeat(viewerId: string | null, beatId: string, db: PrismaClient = prisma): Promise<BeatDetail> {
+  void viewerId;
+  void beatId;
+  void db;
+  throw new Error("not implemented");
+}
+
+/** Updates the owner's beat. Throws BeatNotFoundError for anyone else. */
+export async function updateBeat(
+  ownerId: string,
+  beatId: string,
+  changes: BeatChanges,
+  db: PrismaClient = prisma,
+): Promise<BeatDetail> {
+  void ownerId;
+  void beatId;
+  void changes;
+  void db;
+  throw new Error("not implemented");
+}
+
+/** Deletes the owner's beat. Throws BeatNotFoundError for anyone else. */
+export async function deleteBeat(ownerId: string, beatId: string, db: PrismaClient = prisma): Promise<void> {
+  void ownerId;
+  void beatId;
+  void db;
+  throw new Error("not implemented");
 }

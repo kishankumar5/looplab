@@ -59,3 +59,18 @@ export async function registerAndSignIn(page: Page, suffix: string) {
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByText("Signed in as").waitFor();
 }
+
+/** Gives an existing user (by email) private beats; later titles are newer. */
+export async function seedBeatsFor(email: string, titles: string[]) {
+  await withDb(async (db) => {
+    const { rows } = await db.query('SELECT id FROM "User" WHERE email = $1', [email]);
+    if (!rows[0]) throw new Error(`No user ${email}`);
+    for (const [i, title] of titles.entries()) {
+      const at = new Date(Date.now() - (titles.length - i) * 60_000);
+      await db.query(
+        'INSERT INTO "Beat" (id, "ownerId", title, pattern, "isPublic", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, false, $5, $5)',
+        [randomUUID(), rows[0].id, title, JSON.stringify(pattern), at],
+      );
+    }
+  });
+}

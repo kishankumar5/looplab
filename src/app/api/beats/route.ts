@@ -13,3 +13,9 @@ export async function GET(request: Request): Promise<Response> {
   }
   return Response.json(await listPublicBeats(parsed.data, await getCurrentUserId()));
 }
+
+/** POST /api/beats: save a new beat (PRD US-4). Signed-in only; new beats are private. */
+export async function POST(request: Request): Promise<Response> {
+  void request;
+  throw new Error("not implemented");
+}
