@@ -56,7 +56,17 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)("saved-beat editor page /beats/[
       initialTitle: "rainy window",
       initialPattern: pattern,
       signedIn: true,
+      initialIsPublic: false,
     });
+  });
+
+  it("opens the owner's public beat showing it as public (US-4)", async () => {
+    const { owner, publicBeat } = await seedBeats();
+    viewer.id = owner.id;
+
+    const page = await openBeatPage(publicBeat.id);
+    expect(page.type).toBe(Editor);
+    expect(page.props).toMatchObject({ beatId: publicBeat.id, initialIsPublic: true });
   });
 
   it("shows the 404 page for an id that doesn't exist", async () => {
