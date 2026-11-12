@@ -11,6 +11,8 @@ const fake = vi.hoisted(() => ({
   unlockAudio: vi.fn(),
   createVoices: vi.fn(),
   voices: { kick: vi.fn(), snare: vi.fn(), hihat: vi.fn(), bass: vi.fn(), synth: vi.fn() },
+  /** The level (dB) the engine gave the master Volume. */
+  masterDb: undefined as number | undefined,
 }));
 
 vi.mock("tone", () => ({
@@ -18,6 +20,9 @@ vi.mock("tone", () => ({
   getTransport: () => fake.transport,
   getDraw: () => fake.draw,
   Volume: class {
+    constructor(db?: number) {
+      fake.masterDb = db;
+    }
     toDestination() {
       return this;
     }
@@ -44,6 +49,7 @@ beforeEach(async () => {
   vi.resetAllMocks();
   fake.transport.bpm.value = 120;
   fake.pendingDraws.length = 0;
+  fake.masterDb = undefined;
   fake.unlockAudio.mockResolvedValue(undefined);
   fake.createVoices.mockReturnValue(fake.voices);
   fake.draw.schedule.mockImplementation((callback: () => void) => fake.pendingDraws.push(callback));
@@ -173,6 +179,15 @@ describe("audio engine", () => {
     const master = channel("kick")?.outputs;
     expect(master).toHaveLength(1);
     for (const track of TRACK_IDS) expect(channel(track)?.outputs).toEqual(master);
+  });
+
+  it("plays a row at the default volume (80) as loud as before per-row volume: -4 dB overall", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    // Before #11 every row went straight into the master at -4 dB.
+    const kickDb = (fake.masterDb ?? Number.NaN) + 20 * Math.log10(channel("kick")?.gain.value ?? Number.NaN);
+    expect(kickDb).toBeCloseTo(-4, 6);
+    // The master itself sits just below 0 dB, so a row at 100 is only about 4 dB louder than that.
+    expect(fake.masterDb).toBeLessThan(0);
   });
 
   it("changes a row's volume and mute live while playing, without restarting", async () => {
