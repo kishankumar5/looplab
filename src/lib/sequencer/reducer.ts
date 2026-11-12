@@ -4,7 +4,9 @@ import { MAX_BPM, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type Trac
 export type SequencerAction =
   | { type: "toggleStep"; track: TrackId; step: number }
   | { type: "clear" }
-  | { type: "setTempo"; bpm: number };
+  | { type: "setTempo"; bpm: number }
+  | { type: "setVolume"; track: TrackId; volume: number }
+  | { type: "toggleMute"; track: TrackId };
 
 /**
  * The editor's single reducer (PRD US-2). Pure: returns a new pattern and never mutates `state`,
@@ -18,7 +20,23 @@ export function sequencerReducer(state: BeatPattern, action: SequencerAction): B
       return clear(state);
     case "setTempo":
       return setTempo(state, action.bpm);
+    case "setVolume":
+      return setVolume(state, action.track, action.volume);
+    case "toggleMute":
+      return toggleMute(state, action.track);
   }
+}
+
+/** One row's volume, 0 to 100 (PRD US-3). */
+function setVolume(state: BeatPattern, track: TrackId, volume: number): BeatPattern {
+  void [state, track, volume];
+  throw new Error("not implemented");
+}
+
+/** Mutes an unmuted row, or unmutes a muted one. */
+function toggleMute(state: BeatPattern, track: TrackId): BeatPattern {
+  void [state, track];
+  throw new Error("not implemented");
 }
 
 /**

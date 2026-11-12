@@ -8,6 +8,12 @@ export interface StepGridProps {
   playheadStep?: number | null;
   /** `step` is 0-based. Leave it out for a read-only grid (the listen-only page): nothing toggles. */
   onToggleStep?: (track: TrackId, step: number) => void;
+  /** A row's volume slider moved (0 to 100). With onToggleMute, gives each row its volume and mute controls. */
+  onVolumeChange?: (track: TrackId, volume: number) => void;
+  /** A volume slider was let go (or nudged with an arrow key): one history entry. */
+  onVolumeCommit?: () => void;
+  /** A row's Mute button was pressed. */
+  onToggleMute?: (track: TrackId) => void;
 }
 
 /** Steps are shown in 4 blocks of 4 so beats are easy to count (PRD US-2): [[0..3], [4..7], ...]. */

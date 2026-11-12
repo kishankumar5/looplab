@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultPattern, type BeatPattern } from "@/lib/validation/beat";
+import { TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
 
 // A stand-in for Tone.js and the instruments: these tests check what the engine tells Tone to do
 // (start, tempo, which row plays at which audio time), never what comes out of the speakers.
@@ -19,6 +19,19 @@ vi.mock("tone", () => ({
   getDraw: () => fake.draw,
   Volume: class {
     toDestination() {
+      return this;
+    }
+  },
+  /** A row's channel: records its level (rampTo jumps straight there) and where it's connected. */
+  Gain: class {
+    gain: { value: number; rampTo: (value: number) => void };
+    outputs: unknown[] = [];
+    constructor(value = 1) {
+      const gain = { value, rampTo: (next: number) => void (gain.value = next) };
+      this.gain = gain;
+    }
+    connect(node: unknown) {
+      this.outputs.push(node);
       return this;
     }
   },
@@ -59,6 +72,19 @@ function pattern(edit: (p: BeatPattern) => void = () => {}): BeatPattern {
 }
 
 const ignoreSteps = () => {};
+
+interface FakeChannel {
+  gain: { value: number };
+  outputs: unknown[];
+}
+
+/** The channel the engine routed a row's instrument into (what it gave createVoices). */
+function channel(track: TrackId): FakeChannel | undefined {
+  const outputs = fake.createVoices.mock.calls[0]?.[1] as Partial<Record<TrackId, FakeChannel>> | undefined;
+  return outputs?.[track];
+}
+
+const levels = () => TRACK_IDS.map((track) => channel(track)?.gain.value);
 
 describe("audio engine", () => {
   it("does not touch audio before start", () => {
@@ -131,6 +157,45 @@ describe("audio engine", () => {
     engine.update(pattern((p) => (p.bpm = 128)));
     expect(fake.transport.bpm.value).toBe(128);
     expect(fake.transport.start).toHaveBeenCalledOnce();
+  });
+
+  it("gives each row its own channel into the master, set from the beat's volume and mute", async () => {
+    await engine.start(
+      pattern((p) => {
+        p.tracks.kick.volume = 100;
+        p.tracks.snare.volume = 50;
+        p.tracks.hihat.muted = true;
+      }),
+      ignoreSteps,
+    );
+    // kick, snare, hihat, bass, synth; 80 is the default volume.
+    expect(levels()).toEqual([1, 0.25, 0, 0.64, 0.64]);
+    const master = channel("kick")?.outputs;
+    expect(master).toHaveLength(1);
+    for (const track of TRACK_IDS) expect(channel(track)?.outputs).toEqual(master);
+  });
+
+  it("changes a row's volume and mute live while playing, without restarting", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    engine.update(
+      pattern((p) => {
+        p.tracks.bass.volume = 100;
+        p.tracks.kick.muted = true;
+      }),
+    );
+    expect(levels()).toEqual([0, 0.64, 0.64, 1, 0.64]);
+
+    engine.update(pattern((p) => (p.tracks.bass.volume = 100)));
+    expect(channel("kick")?.gain.value).toBe(0.64);
+    expect(fake.transport.start).toHaveBeenCalledOnce();
+  });
+
+  it("uses the latest volume and mute when it starts again", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    engine.stop();
+    engine.update(pattern((p) => (p.tracks.synth.muted = true)));
+    await engine.start(pattern((p) => (p.tracks.synth.muted = true)), ignoreSteps);
+    expect(channel("synth")?.gain.value).toBe(0);
   });
 
   it("stops the transport and drops playhead updates that were still waiting", async () => {
