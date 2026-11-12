@@ -109,6 +109,13 @@ export async function unlikeBeat(userId: string, beatId: string, db: PrismaClien
   return likeState(userId, beatId, db);
 }
 
+/** The original a remix credits (PRD US-6). */
+export interface RemixOriginal {
+  id: string;
+  title: string;
+  creator: { displayName: string };
+}
+
 /** A beat as its page shows it: the editor (owner) or the listen-only share page. */
 export interface BeatDetail {
   id: string;
@@ -117,7 +124,10 @@ export interface BeatDetail {
   isPublic: boolean;
   isOwner: boolean;
   creator: { displayName: string };
-  remixedFrom: { id: string; title: string; creator: { displayName: string } } | null;
+  /** True for remixes, even when the original is gone (then remixedFrom is null). */
+  isRemix: boolean;
+  /** The original, if the viewer may still see it. */
+  remixedFrom: RemixOriginal | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -129,6 +139,8 @@ export interface MyBeat {
   bpm: number;
   isPublic: boolean;
   updatedAt: Date;
+  isRemix: boolean;
+  remixedFrom: RemixOriginal | null;
 }
 
 export interface BeatChanges {
@@ -160,6 +172,7 @@ function toDetail(row: DetailRow, viewerId: string | null): BeatDetail {
     pattern: beatPatternSchema.parse(row.pattern),
     isPublic: row.isPublic,
     isOwner: row.ownerId === viewerId,
+    isRemix: false,
     creator: { displayName: row.owner.displayName },
     // Credit only originals the viewer may still see (PRD US-6).
     remixedFrom:
@@ -197,7 +210,7 @@ export async function listMyBeats(ownerId: string, db: PrismaClient = prisma): P
     orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, pattern: true, isPublic: true, updatedAt: true },
   });
-  return rows.map(({ pattern, ...row }) => ({ ...row, bpm: beatPatternSchema.shape.bpm.catch(82).parse((pattern as { bpm?: unknown })?.bpm) }));
+  return rows.map(({ pattern, ...row }) => ({ ...row, isRemix: false, remixedFrom: null, bpm: beatPatternSchema.shape.bpm.catch(82).parse((pattern as { bpm?: unknown })?.bpm) }));
 }
 
 /** A beat the viewer may see (public, or their own). Throws BeatNotFoundError otherwise. */
@@ -223,4 +236,9 @@ export async function updateBeat(
 export async function deleteBeat(ownerId: string, beatId: string, db: PrismaClient = prisma): Promise<void> {
   await assertOwner(ownerId, beatId, db);
   await db.beat.delete({ where: { id: beatId } });
+}
+
+/** Copies a beat the user can see into a new private beat they own, crediting the original (PRD US-6). */
+export async function remixBeat(_userId: string, _beatId: string, _db: PrismaClient = prisma): Promise<BeatDetail> {
+  throw new Error("not implemented");
 }
