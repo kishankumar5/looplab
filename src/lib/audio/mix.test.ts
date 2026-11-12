@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { trackGain } from "./mix";
+import { compressorMakeupDb, trackGain } from "./mix";
 
 describe("trackGain", () => {
   it("plays a row at full volume at the instrument's own level", () => {
@@ -23,5 +23,18 @@ describe("trackGain", () => {
 
   it("is silent when muted, whatever the volume", () => {
     for (const volume of [0, 50, 80, 100]) expect(trackGain({ volume, muted: true })).toBe(0);
+  });
+});
+
+describe("compressorMakeupDb", () => {
+  // Web Audio spec, DynamicsCompressorNode processing: makeup = (1 / fullRangeGain) ^ 0.6, where
+  // fullRangeGain is where a 0 dBFS input comes out. With a hard knee that's threshold * (1 - 1/ratio).
+  it("matches the Web Audio formula for a hard-knee compressor", () => {
+    expect(compressorMakeupDb(-1, 20)).toBeCloseTo(0.57, 10);
+    expect(compressorMakeupDb(-6, 4)).toBeCloseTo(2.7, 10);
+  });
+
+  it("adds nothing when the threshold is at full scale", () => {
+    expect(compressorMakeupDb(0, 20)).toBeCloseTo(0, 10);
   });
 });

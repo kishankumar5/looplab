@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
+import { compressorMakeupDb } from "./mix";
 
 // A stand-in for Tone.js and the instruments: these tests check what the engine tells Tone to do
 // (start, tempo, which row plays at which audio time), never what comes out of the speakers.
@@ -13,17 +14,46 @@ const fake = vi.hoisted(() => ({
   voices: { kick: vi.fn(), snare: vi.fn(), hihat: vi.fn(), bass: vi.fn(), synth: vi.fn() },
   /** The level (dB) the engine gave the master Volume. */
   masterDb: undefined as number | undefined,
+  /** The master Volume, the limiter (a Compressor), and whatever went to the speakers. */
+  master: undefined as FakeNodeShape | undefined,
+  limiter: undefined as (FakeNodeShape & { options: Record<string, number> }) | undefined,
+  toSpeakers: [] as unknown[],
 }));
+
+interface FakeNodeShape {
+  outputs: unknown[];
+}
 
 vi.mock("tone", () => ({
   start: fake.unlockAudio,
   getTransport: () => fake.transport,
   getDraw: () => fake.draw,
   Volume: class {
+    outputs: unknown[] = [];
     constructor(db?: number) {
       fake.masterDb = db;
+      fake.master = this;
+    }
+    connect(node: unknown) {
+      this.outputs.push(node);
+      return this;
     }
     toDestination() {
+      fake.toSpeakers.push(this);
+      return this;
+    }
+  },
+  Compressor: class {
+    outputs: unknown[] = [];
+    constructor(public options: Record<string, number>) {
+      fake.limiter = this;
+    }
+    connect(node: unknown) {
+      this.outputs.push(node);
+      return this;
+    }
+    toDestination() {
+      fake.toSpeakers.push(this);
       return this;
     }
   },
@@ -39,6 +69,10 @@ vi.mock("tone", () => ({
       this.outputs.push(node);
       return this;
     }
+    toDestination() {
+      fake.toSpeakers.push(this);
+      return this;
+    }
   },
 }));
 vi.mock("./voices", () => ({ createVoices: fake.createVoices }));
@@ -50,6 +84,9 @@ beforeEach(async () => {
   fake.transport.bpm.value = 120;
   fake.pendingDraws.length = 0;
   fake.masterDb = undefined;
+  fake.master = undefined;
+  fake.limiter = undefined;
+  fake.toSpeakers.length = 0;
   fake.unlockAudio.mockResolvedValue(undefined);
   fake.createVoices.mockReturnValue(fake.voices);
   fake.draw.schedule.mockImplementation((callback: () => void) => fake.pendingDraws.push(callback));
@@ -181,10 +218,30 @@ describe("audio engine", () => {
     for (const track of TRACK_IDS) expect(channel(track)?.outputs).toEqual(master);
   });
 
+  it("sends the mix through a limiter just under full scale before the speakers, so it can't clip", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    const limiter = fake.limiter;
+    // master -> limiter -> make-up trim -> speakers, and nothing else reaches the speakers.
+    expect(fake.master?.outputs).toEqual([limiter]);
+    expect(limiter?.options).toMatchObject({ threshold: -1, ratio: 20, knee: 0 });
+    expect(limiter?.options.attack).toBeLessThanOrEqual(0.003);
+    const trim = limiter?.outputs[0] as FakeChannel | undefined;
+    expect(limiter?.outputs).toHaveLength(1);
+    expect(fake.toSpeakers).toEqual([trim]);
+    expect(trim?.outputs).toEqual([]);
+  });
+
   it("plays a row at the default volume (80) as loud as before per-row volume: -4 dB overall", async () => {
     await engine.start(pattern(), ignoreSteps);
-    // Before #11 every row went straight into the master at -4 dB.
-    const kickDb = (fake.masterDb ?? Number.NaN) + 20 * Math.log10(channel("kick")?.gain.value ?? Number.NaN);
+    // Before #11 every row went straight into the master at -4 dB. Below the threshold the limiter
+    // only adds its make-up gain, which the trim after it takes off again.
+    const trim = fake.limiter?.outputs[0] as FakeChannel | undefined;
+    const dB = (gain: number | undefined) => 20 * Math.log10(gain ?? Number.NaN);
+    const kickDb =
+      (fake.masterDb ?? Number.NaN) +
+      dB(channel("kick")?.gain.value) +
+      compressorMakeupDb(-1, 20) +
+      dB(trim?.gain.value);
     expect(kickDb).toBeCloseTo(-4, 6);
     // The master itself sits just below 0 dB, so a row at 100 is only about 4 dB louder than that.
     expect(fake.masterDb).toBeLessThan(0);

@@ -11,3 +11,13 @@ export function trackGain({ volume, muted }: Pick<Track, "volume" | "muted">): n
   const level = Math.min(100, Math.max(0, volume));
   return (level * level) / 10_000;
 }
+
+/**
+ * The make-up gain (dB) that a Web Audio DynamicsCompressorNode adds to everything it passes, with
+ * a hard knee (knee 0). The engine trims it off after its limiter, so the limiter doesn't make the
+ * beat louder. Pure, so it's tested without Tone.
+ */
+export function compressorMakeupDb(threshold: number, ratio: number): number {
+  void [threshold, ratio];
+  throw new Error("not implemented");
+}
