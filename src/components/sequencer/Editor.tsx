@@ -10,13 +10,15 @@ import { StepGrid } from "./StepGrid";
 import { Transport } from "./Transport";
 
 export interface EditorProps {
-  /** null until the beat has been saved once. */
+  /** The saved beat's id, or null for a new beat (SaveBar keeps the id once the first save creates it). */
   beatId: string | null;
   /** The saved title, else the draft's, else "" (the field then shows "Untitled beat"). */
   initialTitle: string;
   /** The beat to start from: the first state of a fresh undo history. Default: an empty beat. */
   initialPattern?: BeatPattern;
   signedIn: boolean;
+  /** Called once, when the first save creates the beat, before the address changes to /beats/{id}. */
+  onCreated?: (id: string) => void;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface EditorProps {
  * undo/redo history; usePlayback makes the audio follow the result. Saving (SaveBar) reads the
  * pattern but never changes it, so it adds nothing to the history.
  */
-export function Editor({ beatId, initialTitle, initialPattern, signedIn }: EditorProps) {
+export function Editor({ beatId, initialTitle, initialPattern, signedIn, onCreated }: EditorProps) {
   const sequencer = useSequencer(initialPattern);
   const { pattern } = sequencer;
   const playback = usePlayback(pattern);
@@ -34,7 +36,7 @@ export function Editor({ beatId, initialTitle, initialPattern, signedIn }: Edito
     <>
       {/* The title bar: the beat's name (editable), its tempo, and Save. */}
       <div className="mb-3.5">
-        <SaveBar beatId={beatId} initialTitle={initialTitle} pattern={pattern} signedIn={signedIn}>
+        <SaveBar beatId={beatId} initialTitle={initialTitle} pattern={pattern} signedIn={signedIn} onCreated={onCreated}>
           <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{pattern.bpm} BPM</span>
         </SaveBar>
       </div>

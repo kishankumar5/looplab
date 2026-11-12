@@ -23,13 +23,16 @@ const snapshot = (title: string, pattern: BeatPattern) => JSON.stringify([title,
 
 /**
  * Title + Save for the editor (PRD US-1, US-4). Drop it into the editor and pass the current pattern:
- * - first save creates the beat and moves to /beats/{id}; later saves update it in place
+ * - first save creates the beat and changes the address to /beats/{id} without a navigation, so the
+ *   editor stays mounted (playback and undo history carry on); later saves update that beat
  * - signed out: keeps the beat as a draft (see loadDraft) and sends you to sign in
  * - warns before leaving the page with unsaved changes
  */
-export function SaveBar({ beatId, initialTitle, pattern, signedIn, children }: SaveBarProps) {
+export function SaveBar({ beatId, initialTitle, pattern, signedIn, children, onCreated }: SaveBarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  // The editor isn't remounted after the first save, so the new beat's id is kept here.
+  const [savedId, setSavedId] = useState(beatId);
   const [title, setTitle] = useState(initialTitle);
   const [savedSnapshot, setSavedSnapshot] = useState(() => snapshot(initialTitle, pattern));
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
@@ -52,8 +55,8 @@ export function SaveBar({ beatId, initialTitle, pattern, signedIn, children }: S
     }
     setError(null);
     setState("saving");
-    const res = await fetch(beatId ? `/api/beats/${beatId}` : "/api/beats", {
-      method: beatId ? "PATCH" : "POST",
+    const res = await fetch(savedId ? `/api/beats/${savedId}` : "/api/beats", {
+      method: savedId ? "PATCH" : "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -66,7 +69,15 @@ export function SaveBar({ beatId, initialTitle, pattern, signedIn, children }: S
     setSavedSnapshot(snapshot(title, pattern));
     setState("saved");
     clearDraft();
-    if (!beatId) router.replace(`/beats/${json.beat.id}`);
+    if (!savedId) moveToNewBeat(json.beat.id);
+  }
+
+  function moveToNewBeat(id: string) {
+    setSavedId(id);
+    onCreated?.(id);
+    // Not router.replace: that would render the /beats/[id] page and remount the editor. Next keeps
+    // usePathname in step with replaceState; reloading the address opens the saved beat's page.
+    window.history.replaceState(null, "", `/beats/${id}`);
   }
 
   const status = state === "saving" ? "Saving…" : dirty ? "Unsaved changes" : state === "saved" ? "Saved" : "";
