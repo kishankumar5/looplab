@@ -121,6 +121,13 @@ describe("withHistory slider drags", () => {
     expect(canUndo(run(dragTempo(82), COMMIT))).toBe(false);
   });
 
+  it("adds no entry, and keeps the redo history, for a drag that ends where it started", () => {
+    const history = run(toggleKick(0), UNDO, dragTempo(90), dragTempo(82), COMMIT);
+    expect(history.present.bpm).toBe(82);
+    expect(canUndo(history)).toBe(false);
+    expect(canRedo(history)).toBe(true);
+  });
+
   it("clears the redo history when a drag after undoing ends", () => {
     const history = run(toggleKick(0), UNDO, dragTempo(100), COMMIT);
     expect(canRedo(history)).toBe(false);
