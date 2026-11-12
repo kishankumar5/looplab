@@ -1,6 +1,6 @@
 import type * as Tone from "tone";
 import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
-import { trackGain } from "./mix";
+import { compressorMakeupDb, trackGain } from "./mix";
 import { createVoices, type Voices } from "./voices";
 
 /** Called with the 0-based step being heard, in time with the sound, while the loop plays. */
@@ -21,10 +21,22 @@ interface Rig {
 const DEFAULT_ROW_DB = -4;
 /**
  * The master's level, so that the default row's channel (trackGain 0.64, about -3.9 dB) plus the
- * master comes out at DEFAULT_ROW_DB. That puts the master at about -0.1 dB. Rows turned up above 80
- * eat into the headroom: every row at 100 hitting at once is about 3.9 dB louder than before.
+ * master comes out at DEFAULT_ROW_DB. That puts the master at about -0.1 dB. Rows turned up past 80
+ * can push the mix over full scale; the limiter after the master stops it clipping.
  */
 const MASTER_DB = DEFAULT_ROW_DB - 20 * Math.log10(trackGain(defaultPattern().tracks.kick));
+
+/**
+ * A limiter on the master output: a compressor at 20:1 with a hard knee (Tone.Limiter keeps a 30 dB
+ * soft knee, which barely limits near full scale), just under 0 dBFS. It reacts at once and holds
+ * for 250 ms, so the gain is still down when the next 16th note lands. Measured in Chromium, the
+ * loudest beat the grid allows (every row on every step, all at 100) then peaks at about -0.5 dBFS
+ * instead of +2.9, at 82 and 140 BPM. At the default volumes the same beat only just reaches the
+ * threshold, and anything quieter passes through untouched.
+ */
+const LIMITER = { threshold: -1, ratio: 20, knee: 0, attack: 0, release: 0.25 };
+/** Takes off the make-up gain the browser's compressor adds to everything, so the level stays put. */
+const LIMITER_TRIM = 10 ** (-compressorMakeupDb(LIMITER.threshold, LIMITER.ratio) / 20);
 /** How quickly a channel reaches a new volume: fast, but a ramp, so the change doesn't click. */
 const LEVEL_RAMP_SECONDS = 0.02;
 
@@ -95,8 +107,11 @@ async function loadRig(): Promise<Rig> {
 }
 
 function buildRig(tone: typeof Tone): Rig {
-  // TODO(#7): muffle and vinyl crackle go between the instruments and this master volume.
-  const master = new tone.Volume(MASTER_DB).toDestination();
+  // Row channels -> master -> limiter -> make-up trim -> speakers.
+  // TODO(#7): muffle and vinyl crackle go between the row channels and the master.
+  const output = new tone.Gain(LIMITER_TRIM).toDestination();
+  const limiter = new tone.Compressor(LIMITER).connect(output);
+  const master = new tone.Volume(MASTER_DB).connect(limiter);
   const channels = Object.fromEntries(
     TRACK_IDS.map((track) => [track, new tone.Gain(trackGain(pattern.tracks[track])).connect(master)]),
   ) as Record<TrackId, Tone.Gain>;

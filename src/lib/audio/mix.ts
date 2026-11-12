@@ -18,6 +18,8 @@ export function trackGain({ volume, muted }: Pick<Track, "volume" | "muted">): n
  * beat louder. Pure, so it's tested without Tone.
  */
 export function compressorMakeupDb(threshold: number, ratio: number): number {
-  void [threshold, ratio];
-  throw new Error("not implemented");
+  // Web Audio spec, DynamicsCompressorNode processing: makeup = (1 / fullRangeGain) ^ 0.6, where
+  // fullRangeGain is where a 0 dBFS input comes out. With a hard knee, that's threshold * (1 - 1/ratio).
+  const fullRangeDb = threshold * (1 - 1 / ratio);
+  return -0.6 * fullRangeDb;
 }
