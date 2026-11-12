@@ -1,12 +1,12 @@
 "use client";
 
+import { SaveBar } from "@/components/beats/SaveBar";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSequencer } from "@/hooks/useSequencer";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
 import { useUndoShortcuts } from "@/hooks/useUndoShortcuts";
 import type { BeatPattern } from "@/lib/validation/beat";
 import { StepGrid } from "./StepGrid";
-import { TitleBar } from "./TitleBar";
 import { Transport } from "./Transport";
 
 export interface EditorProps {
@@ -21,18 +21,23 @@ export interface EditorProps {
 
 /**
  * The beat editor (mockup Editor screen). Every edit goes through useSequencer, which keeps the
- * undo/redo history; usePlayback makes the audio follow the result.
+ * undo/redo history; usePlayback makes the audio follow the result. Saving (SaveBar) reads the
+ * pattern but never changes it, so it adds nothing to the history.
  */
-export function Editor(props: EditorProps) {
-  void props;
-  const sequencer = useSequencer();
+export function Editor({ beatId, initialTitle, initialPattern, signedIn }: EditorProps) {
+  const sequencer = useSequencer(initialPattern);
   const { pattern } = sequencer;
   const playback = usePlayback(pattern);
   useSpaceShortcut(playback.toggle);
   useUndoShortcuts(sequencer.undo, sequencer.redo);
   return (
     <>
-      <TitleBar title="Untitled beat" bpm={pattern.bpm} />
+      {/* The title bar: the beat's name (editable), its tempo, and Save. */}
+      <div className="mb-3.5">
+        <SaveBar beatId={beatId} initialTitle={initialTitle} pattern={pattern} signedIn={signedIn}>
+          <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{pattern.bpm} BPM</span>
+        </SaveBar>
+      </div>
       <Transport
         playing={playback.playing}
         onTogglePlay={playback.toggle}

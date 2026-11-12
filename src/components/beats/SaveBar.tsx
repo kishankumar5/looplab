@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { clearDraft, saveDraft } from "@/lib/beats/draft";
 import type { BeatPattern } from "@/lib/validation/beat";
 
@@ -12,6 +12,8 @@ export interface SaveBarProps {
   /** The editor's current pattern. */
   pattern: BeatPattern;
   signedIn: boolean;
+  /** Shown right after the title, such as the tempo. */
+  children?: ReactNode;
 }
 
 const DEFAULT_TITLE = "Untitled beat";
@@ -23,7 +25,7 @@ const snapshot = (title: string, pattern: BeatPattern) => JSON.stringify([title,
  * - signed out: keeps the beat as a draft (see loadDraft) and sends you to sign in
  * - warns before leaving the page with unsaved changes
  */
-export function SaveBar({ beatId, initialTitle, pattern, signedIn }: SaveBarProps) {
+export function SaveBar({ beatId, initialTitle, pattern, signedIn, children }: SaveBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [title, setTitle] = useState(initialTitle);
@@ -74,8 +76,9 @@ export function SaveBar({ beatId, initialTitle, pattern, signedIn }: SaveBarProp
         placeholder={DEFAULT_TITLE}
         aria-label="Beat title"
         maxLength={80}
-        className="min-w-0 flex-1 border-b border-dashed border-line bg-transparent py-1 text-xl font-bold focus-visible:outline-2 focus-visible:outline-accent-2"
+        className="min-w-0 flex-1 border-b border-dashed border-line bg-transparent py-1 text-[22px] font-bold placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent-2"
       />
+      {children}
       <p role="status" className="text-sm text-muted">
         {status}
       </p>
@@ -88,7 +91,7 @@ export function SaveBar({ beatId, initialTitle, pattern, signedIn }: SaveBarProp
         type="button"
         onClick={save}
         disabled={state === "saving"}
-        className="rounded-lg bg-accent px-4 py-2 font-bold text-on-accent disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-2"
+        className="cursor-pointer rounded-lg bg-accent px-4 py-2 font-bold text-on-accent disabled:cursor-default disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-2"
       >
         Save
       </button>
