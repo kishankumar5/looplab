@@ -74,6 +74,15 @@ export function MyBeatRow({ id, title, bpm, isPublic: savedIsPublic, editedAgo }
       ) : (
         <span className="min-w-[140px] flex-1 font-bold">{title}</span>
       )}
+      {/* The pill sits next to the title, as in the mockup, with its toggle beside it. */}
+      <VisibilityToggle
+        beatId={id}
+        isPublic={isPublic}
+        onChange={(next) => {
+          setIsPublic(next);
+          router.refresh();
+        }}
+      />
       <span className="text-sm text-muted">
         {bpm} BPM · edited {editedAgo}
       </span>
@@ -88,14 +97,6 @@ export function MyBeatRow({ id, title, bpm, isPublic: savedIsPublic, editedAgo }
       <button type="button" onClick={remove} className={`${button} text-danger`}>
         Delete
       </button>
-      <VisibilityToggle
-        beatId={id}
-        isPublic={isPublic}
-        onChange={(next) => {
-          setIsPublic(next);
-          router.refresh();
-        }}
-      />
       {error && (
         <p role="alert" className="w-full text-sm text-danger">
           {error}
