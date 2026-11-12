@@ -8,17 +8,18 @@ export type Voices = Record<TrackId, Voice>;
 type ToneModule = typeof Tone;
 
 /**
- * Builds one synthesized instrument per row, all routed into `output`.
+ * Builds one synthesized instrument per row, each routed into its own output (the engine gives
+ * every row a channel, which is where its volume and mute apply).
  * Each row plays one fixed sound (PRD: no melody editing), and LoopLab ships no audio files.
  * The sounds are soft and warm on purpose: rounded waveforms, short decays, quiet hats.
  */
-export function createVoices(tone: ToneModule, output: Tone.InputNode): Voices {
+export function createVoices(tone: ToneModule, outputs: Record<TrackId, Tone.InputNode>): Voices {
   return {
-    kick: kick(tone, output),
-    snare: snare(tone, output),
-    hihat: hihat(tone, output),
-    bass: bass(tone, output),
-    synth: keys(tone, output),
+    kick: kick(tone, outputs.kick),
+    snare: snare(tone, outputs.snare),
+    hihat: hihat(tone, outputs.hihat),
+    bass: bass(tone, outputs.bass),
+    synth: keys(tone, outputs.synth),
   };
 }
 

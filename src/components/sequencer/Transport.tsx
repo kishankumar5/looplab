@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { RangeInput } from "@/components/ui/RangeInput";
 import { MAX_BPM, MIN_BPM } from "@/lib/validation/beat";
 import { PlayButton } from "./PlayButton";
 
@@ -77,28 +78,18 @@ interface TempoSliderProps {
 /** Tempo, 60 to 140 BPM, with its value shown as text (CLAUDE.md accessibility rules). */
 function TempoSlider({ bpm, onChange, onCommit }: TempoSliderProps) {
   const id = useId();
-  const input = useRef<HTMLInputElement>(null);
-  // React's onChange fires on every movement. The native change event fires once, when the user
-  // lets go (or per arrow key press), so that's when the drag becomes one history entry.
-  useEffect(() => {
-    const slider = input.current;
-    slider?.addEventListener("change", onCommit);
-    return () => slider?.removeEventListener("change", onCommit);
-  }, [onCommit]);
   return (
     <div className="flex flex-col gap-1 text-xs text-muted">
       <label htmlFor={id}>Tempo</label>
       <span className="text-sm font-bold text-text">{bpm} BPM</span>
-      <input
-        ref={input}
+      <RangeInput
         id={id}
-        type="range"
         min={MIN_BPM}
         max={MAX_BPM}
-        step={1}
         value={bpm}
         aria-valuetext={`${bpm} BPM`}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={onChange}
+        onCommit={onCommit}
         className={`w-[130px] cursor-pointer accent-accent ${FOCUS_RING}`}
       />
     </div>

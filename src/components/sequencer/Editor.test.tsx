@@ -157,9 +157,11 @@ describe("Editor playback", () => {
   });
 });
 
-/** Labels of the cells that are on. */
+/** Labels of the cells that are on (not other pressed buttons, such as a row's Mute). */
 function onCells() {
-  return screen.queryAllByRole("button", { pressed: true }).map((cell) => cell.getAttribute("aria-label"));
+  return screen
+    .queryAllByRole("button", { pressed: true, name: / step \d+$/ })
+    .map((cell) => cell.getAttribute("aria-label"));
 }
 
 const undoButton = () => screen.getByRole("button", { name: "Undo" });

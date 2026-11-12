@@ -1,6 +1,6 @@
 import { STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type TrackId } from "@/lib/validation/beat";
 import { StepCell } from "./StepCell";
-import { TRACK_LOOKS } from "./tracks";
+import { TrackHeader, type TrackHeaderControls } from "./TrackHeader";
 
 export interface StepGridProps {
   pattern: BeatPattern;
@@ -24,8 +24,9 @@ const BLOCKS = Array.from({ length: STEPS_PER_BAR / STEPS_PER_BLOCK }, (_, b) =>
 
 // Row header, then one column per block. Rows touch, so the shaded blocks (below) run as one band
 // from the step numbers to the last row. Blocks are padded and spaced apart, which is the visual
-// break after every 4th step.
+// break after every 4th step. The header is wider when it holds the volume and mute controls.
 const ROW = "grid min-w-[640px] grid-cols-[150px_repeat(4,1fr)] items-center gap-x-2";
+const ROW_WITH_CONTROLS = "grid min-w-[690px] grid-cols-[190px_repeat(4,1fr)] items-center gap-x-2";
 
 type Edge = "top" | "middle" | "bottom";
 const EDGE_PADDING: Record<Edge, string> = {
@@ -40,17 +41,28 @@ function blockClass(blockIndex: number, edge: Edge) {
   return `grid grid-cols-4 gap-[5px] px-1.5 ${EDGE_PADDING[edge]} ${band}`;
 }
 
-/** The 5 x 16 step grid (mockup Editor screen, PRD US-2). Read-only without onToggleStep (PRD US-5). */
-export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGridProps) {
+/**
+ * The 5 x 16 step grid (mockup Editor screen, PRD US-2). Read-only without onToggleStep (PRD US-5).
+ * With the volume and mute handlers, each row header gets its volume slider and Mute button (US-3).
+ */
+export function StepGrid(props: StepGridProps) {
+  const { pattern, playheadStep = null, onToggleStep } = props;
   const label = onToggleStep ? "Step grid" : "Step grid (read-only)";
+  const controlsFor = rowControls(props);
+  const row = controlsFor ? ROW_WITH_CONTROLS : ROW;
   return (
     <div role="group" aria-label={label} className="overflow-x-auto rounded-[10px] bg-panel p-3">
-      <StepNumbers playheadStep={playheadStep} />
-      {TRACK_IDS.map((track, row) => (
-        <div key={track} className={ROW}>
-          <TrackName track={track} />
+      <StepNumbers playheadStep={playheadStep} row={row} />
+      {TRACK_IDS.map((track, rowIndex) => (
+        <div key={track} className={row}>
+          <TrackHeader
+            track={track}
+            volume={pattern.tracks[track].volume}
+            muted={pattern.tracks[track].muted}
+            controls={controlsFor?.(track)}
+          />
           {BLOCKS.map((block, b) => (
-            <div key={block[0]} className={blockClass(b, row === TRACK_IDS.length - 1 ? "bottom" : "middle")}>
+            <div key={block[0]} className={blockClass(b, rowIndex === TRACK_IDS.length - 1 ? "bottom" : "middle")}>
               {block.map((step) => (
                 <StepCell
                   key={step}
@@ -69,28 +81,28 @@ export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGri
   );
 }
 
-function TrackName({ track }: { track: TrackId }) {
-  const look = TRACK_LOOKS[track];
-  return (
-    <span className="flex items-center gap-2 text-sm">
-      <span aria-hidden className={`size-2 shrink-0 rounded-full ${look.dot}`} />
-      {look.name}
-      {/* TODO(#11): volume slider and mute button */}
-    </span>
-  );
+/** Each row's volume and mute handlers, or null when the grid wasn't given them. */
+function rowControls({ onVolumeChange, onVolumeCommit, onToggleMute }: StepGridProps) {
+  if (!onVolumeChange || !onVolumeCommit || !onToggleMute) return null;
+  return (track: TrackId): TrackHeaderControls => ({
+    onVolumeChange: (volume) => onVolumeChange(track, volume),
+    // The same function every render, so the slider doesn't re-subscribe to its change event.
+    onVolumeCommit,
+    onToggleMute: () => onToggleMute(track),
+  });
 }
 
 /**
  * Column numbers 1 to 16 above the grid; the first of each beat (1, 5, 9, 13) is bolder.
  * Hidden from screen readers: each cell's label has its number.
  */
-function StepNumbers({ playheadStep }: { playheadStep: number | null }) {
+function StepNumbers({ playheadStep, row }: { playheadStep: number | null; row: string }) {
   const numberClass = (step: number) => {
     if (step === playheadStep) return "font-bold text-accent-2";
     return step % STEPS_PER_BLOCK === 0 ? "font-bold text-text" : "";
   };
   return (
-    <div aria-hidden className={`${ROW} text-[10px] text-muted`}>
+    <div aria-hidden className={`${row} text-[10px] text-muted`}>
       <span />
       {BLOCKS.map((block, b) => (
         <div key={block[0]} className={blockClass(b, "top")}>

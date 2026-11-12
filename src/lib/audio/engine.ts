@@ -1,5 +1,6 @@
 import type * as Tone from "tone";
-import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern } from "@/lib/validation/beat";
+import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
+import { trackGain } from "./mix";
 import { createVoices, type Voices } from "./voices";
 
 /** Called with the 0-based step being heard, in time with the sound, while the loop plays. */
@@ -9,10 +10,14 @@ export type StepListener = (step: number) => void;
 interface Rig {
   tone: typeof Tone;
   voices: Voices;
+  /** One per row, between its instrument and the master: where volume and mute apply (PRD US-3). */
+  channels: Record<TrackId, Tone.Gain>;
 }
 
-/** Headroom so every row hitting at once doesn't clip. */
+/** Headroom so every row hitting at once doesn't clip, even with every volume at 100. */
 const MASTER_DB = -4;
+/** How quickly a channel reaches a new volume: fast, but a ramp, so the change doesn't click. */
+const LEVEL_RAMP_SECONDS = 0.02;
 
 let rig: Rig | null = null;
 let pattern: BeatPattern = defaultPattern();
@@ -30,8 +35,10 @@ export async function start(next: BeatPattern, onStep: StepListener): Promise<vo
   playing = true;
   const id = ++session;
   try {
-    const { tone } = await loadRig();
+    const loaded = await loadRig();
     if (id !== session) return;
+    const { tone } = loaded;
+    setLevels(loaded, pattern);
     nextStep = 0;
     tone.getTransport().bpm.value = pattern.bpm;
     tone.getTransport().start();
@@ -42,10 +49,20 @@ export async function start(next: BeatPattern, onStep: StepListener): Promise<vo
   }
 }
 
-/** Hands the engine the latest pattern and tempo; a playing loop picks them up without restarting. */
+/**
+ * Hands the engine the latest pattern: tempo, volume, and mute change at once, and steps from the
+ * next pass, all without restarting the loop.
+ */
 export function update(next: BeatPattern): void {
   pattern = next;
-  if (rig) rig.tone.getTransport().bpm.value = next.bpm;
+  if (!rig) return;
+  rig.tone.getTransport().bpm.value = next.bpm;
+  setLevels(rig, next);
+}
+
+/** Each row's channel follows its volume and mute; a muted row is silent, ringing notes included. */
+function setLevels({ channels }: Rig, beat: BeatPattern): void {
+  for (const track of TRACK_IDS) channels[track].gain.rampTo(trackGain(beat.tracks[track]), LEVEL_RAMP_SECONDS);
 }
 
 /** Stops the loop and the playhead. */
@@ -71,10 +88,13 @@ async function loadRig(): Promise<Rig> {
 function buildRig(tone: typeof Tone): Rig {
   // TODO(#7): muffle and vinyl crackle go between the instruments and this master volume.
   const master = new tone.Volume(MASTER_DB).toDestination();
+  const channels = Object.fromEntries(
+    TRACK_IDS.map((track) => [track, new tone.Gain(trackGain(pattern.tracks[track])).connect(master)]),
+  ) as Record<TrackId, Tone.Gain>;
   const transport = tone.getTransport();
   transport.cancel(0); // drop a schedule left behind by a hot-reloaded copy of this module
   transport.scheduleRepeat(tick, "16n");
-  return { tone, voices: createVoices(tone, master) };
+  return { tone, voices: createVoices(tone, channels), channels };
 }
 
 /**
@@ -85,7 +105,7 @@ function tick(time: number): void {
   if (!rig) return;
   const step = nextStep;
   nextStep = (step + 1) % STEPS_PER_BAR;
-  // TODO(#11): per-row volume and mute.
+  // Muted rows still trigger; their channel is silent (see setLevels).
   for (const track of TRACK_IDS) {
     if (pattern.tracks[track].steps[step]) rig.voices[track](time);
   }

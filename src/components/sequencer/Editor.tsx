@@ -73,6 +73,9 @@ export function Editor(props: EditorProps) {
         pattern={pattern}
         playheadStep={playback.currentStep}
         onToggleStep={(track, step) => sequencer.edit({ type: "toggleStep", track, step })}
+        onVolumeChange={(track, volume) => sequencer.preview({ type: "setVolume", track, volume })}
+        onVolumeCommit={sequencer.commit}
+        onToggleMute={(track) => sequencer.edit({ type: "toggleMute", track })}
       />
     </>
   );
