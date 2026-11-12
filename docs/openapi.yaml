@@ -1,0 +1,333 @@
+openapi: 3.1.0
+info:
+  title: LoopLab API
+  version: 0.2.0
+  description: |
+    Public API for LoopLab, a browser-based lo-fi beat maker (PRD US-7).
+
+    **Auth:** sign in through Auth.js (`POST /api/auth/callback/credentials`). The session is a signed
+    JWT in an HTTP-only cookie (`authjs.session-token`, or `__Secure-authjs.session-token` on HTTPS).
+    Endpoints marked with the lock need that cookie; in this page, sign in on the site first and
+    "Try it out" sends the cookie automatically.
+
+    **Errors** always use one shape: `{ "error": { "code": "NOT_FOUND", "message": "Beat not found" } }`.
+    Invalid input returns 400 with the field that failed at the start of the message.
+
+    **Private beats** answer 404 (not 403) to anyone but their owner, so they can't be discovered.
+
+    Kept in sync with the code by `tests/config/openapi.test.ts`, which fails if a route is missing here.
+servers:
+  - url: /
+    description: This deployment
+tags:
+  - name: Accounts
+  - name: Gallery
+  - name: Likes
+  - name: Docs
+
+paths:
+  /api/auth/register:
+    post:
+      tags: [Accounts]
+      summary: Create an account
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+            example: { email: nick@example.com, displayName: nick, password: hunter222 }
+      responses:
+        "201":
+          description: Account created. Sign in next to get a session.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409":
+          description: An account with this email already exists.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+              example: { error: { code: CONFLICT, message: An account with this email already exists. } }
+
+  /api/auth/callback/credentials:
+    x-managed-by: auth.js
+    post:
+      tags: [Accounts]
+      summary: Sign in (Auth.js)
+      description: |
+        Handled by Auth.js. Send a form-encoded body with `email`, `password`, and `csrfToken`
+        (from `GET /api/auth/csrf`). On success, sets the session cookie and redirects.
+        Wrong credentials redirect to `/signin?error=CredentialsSignin`.
+      operationId: signIn
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [email, password, csrfToken]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                csrfToken: { type: string }
+      responses:
+        "302": { description: Signed in (or redirected to the sign-in page with an error). }
+
+  /api/auth/csrf:
+    x-managed-by: auth.js
+    get:
+      tags: [Accounts]
+      summary: Get a CSRF token (Auth.js)
+      operationId: getCsrfToken
+      responses:
+        "200":
+          description: Token to send with sign-in and sign-out.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrfToken: { type: string }
+
+  /api/auth/session:
+    x-managed-by: auth.js
+    get:
+      tags: [Accounts]
+      summary: Get the current session (Auth.js)
+      operationId: getSession
+      responses:
+        "200":
+          description: The signed-in user, or `null` when signed out.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: "null"
+                  - type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id: { type: string }
+                          name: { type: string, description: Display name }
+                          email: { type: string, format: email }
+                      expires: { type: string, format: date-time }
+
+  /api/auth/signout:
+    x-managed-by: auth.js
+    post:
+      tags: [Accounts]
+      summary: Sign out (Auth.js)
+      operationId: signOut
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [csrfToken]
+              properties:
+                csrfToken: { type: string }
+      responses:
+        "302": { description: Session cookie cleared. }
+
+  /api/beats:
+    get:
+      tags: [Gallery]
+      summary: List public beats
+      description: Public beats, 20 per page. No sign-in needed; when signed in, `likedByMe` reflects your likes.
+      operationId: listPublicBeats
+      parameters:
+        - name: sort
+          in: query
+          schema: { type: string, enum: [new, likes], default: new }
+          description: "`new` = newest first; `likes` = most liked first, ties broken by newest."
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+      responses:
+        "200":
+          description: One page of public beats.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GalleryPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /api/beats/{id}/like:
+    parameters:
+      - $ref: "#/components/parameters/BeatId"
+    post:
+      tags: [Likes]
+      summary: Like a beat
+      description: Liking a beat you already liked keeps a single like.
+      operationId: likeBeat
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Your like is recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LikeState" }
+              example: { liked: true, likeCount: 12 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Likes]
+      summary: Remove your like
+      description: Removing a like you never gave is fine.
+      operationId: unlikeBeat
+      security: [{ sessionCookie: [] }]
+      responses:
+        "200":
+          description: Your like is removed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LikeState" }
+              example: { liked: false, likeCount: 11 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/openapi:
+    get:
+      tags: [Docs]
+      summary: This spec, as YAML
+      operationId: getOpenApiSpec
+      responses:
+        "200":
+          description: The OpenAPI document.
+          content:
+            application/yaml:
+              schema: { type: string }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: authjs.session-token
+      description: Auth.js session cookie (`__Secure-authjs.session-token` on HTTPS). Set by signing in.
+
+  parameters:
+    BeatId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: Beat id.
+
+  responses:
+    BadRequest:
+      description: The input failed validation. The message starts with the field that failed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example: { error: { code: BAD_REQUEST, message: "password: Password must be at least 8 characters" } }
+    Unauthorized:
+      description: You need to sign in.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example: { error: { code: UNAUTHORIZED, message: Sign in to like beats } }
+    NotFound:
+      description: The beat doesn't exist, or it's private and not yours.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example: { error: { code: NOT_FOUND, message: Beat not found } }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [BAD_REQUEST, UNAUTHORIZED, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+            message: { type: string }
+
+    RegisterRequest:
+      type: object
+      required: [email, displayName, password]
+      properties:
+        email: { type: string, format: email, description: Stored lowercase and trimmed. }
+        displayName: { type: string, minLength: 1, maxLength: 40 }
+        password: { type: string, format: password, minLength: 8, maxLength: 100 }
+
+    User:
+      type: object
+      description: A user. The password hash is never returned.
+      required: [id, email, displayName, createdAt]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    BeatPattern:
+      type: object
+      description: |
+        A beat is data, not audio (PRD section 6): 5 tracks of 16 on/off steps plus tempo, swing,
+        volumes, and lo-fi effects. Validated by the app's beatPatternSchema.
+      properties:
+        version: { type: integer, const: 1 }
+        bpm: { type: integer, minimum: 60, maximum: 140 }
+        swing: { type: integer, minimum: 0, maximum: 60 }
+        tracks:
+          type: object
+          properties:
+            kick: { $ref: "#/components/schemas/Track" }
+            snare: { $ref: "#/components/schemas/Track" }
+            hihat: { $ref: "#/components/schemas/Track" }
+            bass: { $ref: "#/components/schemas/Track" }
+            synth: { $ref: "#/components/schemas/Track" }
+        effects:
+          type: object
+          properties:
+            muffle: { type: integer, minimum: 0, maximum: 100 }
+            crackle: { type: integer, minimum: 0, maximum: 100 }
+
+    Track:
+      type: object
+      properties:
+        steps: { type: array, items: { type: boolean }, minItems: 16, maxItems: 16 }
+        volume: { type: integer, minimum: 0, maximum: 100 }
+        muted: { type: boolean }
+
+    GalleryBeat:
+      type: object
+      required: [id, title, pattern, createdAt, creator, likeCount, likedByMe]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        pattern: { $ref: "#/components/schemas/BeatPattern" }
+        createdAt: { type: string, format: date-time }
+        creator:
+          type: object
+          properties:
+            displayName: { type: string }
+        likeCount: { type: integer, minimum: 0 }
+        likedByMe: { type: boolean, description: Always false when signed out. }
+
+    GalleryPage:
+      type: object
+      required: [beats, page, totalPages]
+      properties:
+        beats: { type: array, items: { $ref: "#/components/schemas/GalleryBeat" } }
+        page: { type: integer, minimum: 1 }
+        totalPages: { type: integer, minimum: 1 }
+
+    LikeState:
+      type: object
+      required: [liked, likeCount]
+      properties:
+        liked: { type: boolean }
+        likeCount: { type: integer, minimum: 0 }
