@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import type { RemixOriginal } from "@/lib/db/beats";
+import { RemixCredit } from "./RemixCredit";
 
 export interface MyBeatRowProps {
   id: string;
@@ -10,13 +12,15 @@ export interface MyBeatRowProps {
   bpm: number;
   isPublic: boolean;
   editedAgo: string;
+  isRemix?: boolean;
+  remixedFrom?: RemixOriginal | null;
 }
 
 const button =
   "rounded-lg border border-line px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-2";
 
 /** One row on My Beats (mockup My Beats screen): open, rename inline, delete with confirmation. */
-export function MyBeatRow({ id, title, bpm, isPublic, editedAgo }: MyBeatRowProps) {
+export function MyBeatRow({ id, title, bpm, isPublic, editedAgo, isRemix = false, remixedFrom = null }: MyBeatRowProps) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +92,11 @@ export function MyBeatRow({ id, title, bpm, isPublic, editedAgo }: MyBeatRowProp
       <button type="button" onClick={remove} className={`${button} text-danger`}>
         Delete
       </button>
+      {isRemix && (
+        <div className="w-full">
+          <RemixCredit isRemix={isRemix} remixedFrom={remixedFrom} />
+        </div>
+      )}
       {error && (
         <p role="alert" className="w-full text-sm text-danger">
           {error}
