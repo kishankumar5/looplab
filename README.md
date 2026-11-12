@@ -51,7 +51,7 @@ LoopLab deploys to **Vercel** with a **Neon** Postgres database.
 | Production | Every push to `main` | Neon main branch |
 | Preview | Every pull request (Vercel comments the URL on the PR) | Its own Neon branch, created by the Neon integration |
 
-**Production URL:** _added once Vercel is connected_
+**Production URL:** https://looplab-sand.vercel.app
 
 How it's wired:
 1. The Vercel project imports this repo; Vercel's GitHub app builds every PR and every push to `main`.
