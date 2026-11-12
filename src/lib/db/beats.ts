@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { beatPatternSchema, type BeatPattern } from "@/lib/validation/beat";
 import { GALLERY_PAGE_SIZE, type GalleryQuery } from "@/lib/validation/gallery";
 import { prisma } from "./prisma";
 
@@ -106,4 +107,120 @@ export async function unlikeBeat(userId: string, beatId: string, db: PrismaClien
   await assertCanSee(userId, beatId, db);
   await db.like.deleteMany({ where: { userId, beatId } });
   return likeState(userId, beatId, db);
+}
+
+/** A beat as its page shows it: the editor (owner) or the listen-only share page. */
+export interface BeatDetail {
+  id: string;
+  title: string;
+  pattern: BeatPattern;
+  isPublic: boolean;
+  isOwner: boolean;
+  creator: { displayName: string };
+  remixedFrom: { id: string; title: string; creator: { displayName: string } } | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** A row on My Beats (PRD US-4). */
+export interface MyBeat {
+  id: string;
+  title: string;
+  bpm: number;
+  isPublic: boolean;
+  updatedAt: Date;
+}
+
+export interface BeatChanges {
+  title?: string;
+  pattern?: BeatPattern;
+  isPublic?: boolean;
+}
+
+const detailSelect = {
+  id: true,
+  title: true,
+  pattern: true,
+  isPublic: true,
+  ownerId: true,
+  createdAt: true,
+  updatedAt: true,
+  owner: { select: { displayName: true } },
+  remixedFrom: { select: { id: true, title: true, isPublic: true, owner: { select: { displayName: true } } } },
+} as const;
+
+type DetailRow = Prisma.BeatGetPayload<{ select: typeof detailSelect }>;
+
+function toDetail(row: DetailRow, viewerId: string | null): BeatDetail {
+  const original = row.remixedFrom;
+  return {
+    id: row.id,
+    title: row.title,
+    // Validated on the way in; parse again so old or hand-edited rows can't reach the editor malformed.
+    pattern: beatPatternSchema.parse(row.pattern),
+    isPublic: row.isPublic,
+    isOwner: row.ownerId === viewerId,
+    creator: { displayName: row.owner.displayName },
+    // Credit only originals the viewer may still see (PRD US-6).
+    remixedFrom:
+      original && original.isPublic
+        ? { id: original.id, title: original.title, creator: { displayName: original.owner.displayName } }
+        : null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Throws BeatNotFoundError unless the user owns the beat. */
+async function assertOwner(ownerId: string, beatId: string, db: PrismaClient) {
+  const beat = await db.beat.findUnique({ where: { id: beatId }, select: { ownerId: true } });
+  if (!beat || beat.ownerId !== ownerId) throw new BeatNotFoundError();
+}
+
+/** Saves a new private beat for the owner. */
+export async function createBeat(
+  ownerId: string,
+  data: { title?: string; pattern: BeatPattern },
+  db: PrismaClient = prisma,
+): Promise<BeatDetail> {
+  const row = await db.beat.create({
+    data: { ownerId, title: data.title, pattern: data.pattern },
+    select: detailSelect,
+  });
+  return toDetail(row, ownerId);
+}
+
+/** The owner's beats, most recently edited first. */
+export async function listMyBeats(ownerId: string, db: PrismaClient = prisma): Promise<MyBeat[]> {
+  const rows = await db.beat.findMany({
+    where: { ownerId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true, pattern: true, isPublic: true, updatedAt: true },
+  });
+  return rows.map(({ pattern, ...row }) => ({ ...row, bpm: beatPatternSchema.shape.bpm.catch(82).parse((pattern as { bpm?: unknown })?.bpm) }));
+}
+
+/** A beat the viewer may see (public, or their own). Throws BeatNotFoundError otherwise. */
+export async function getBeat(viewerId: string | null, beatId: string, db: PrismaClient = prisma): Promise<BeatDetail> {
+  const row = await db.beat.findUnique({ where: { id: beatId }, select: detailSelect });
+  if (!row || (!row.isPublic && row.ownerId !== viewerId)) throw new BeatNotFoundError();
+  return toDetail(row, viewerId);
+}
+
+/** Updates the owner's beat. Throws BeatNotFoundError for anyone else. */
+export async function updateBeat(
+  ownerId: string,
+  beatId: string,
+  changes: BeatChanges,
+  db: PrismaClient = prisma,
+): Promise<BeatDetail> {
+  await assertOwner(ownerId, beatId, db);
+  const row = await db.beat.update({ where: { id: beatId }, data: changes, select: detailSelect });
+  return toDetail(row, ownerId);
+}
+
+/** Deletes the owner's beat. Throws BeatNotFoundError for anyone else. */
+export async function deleteBeat(ownerId: string, beatId: string, db: PrismaClient = prisma): Promise<void> {
+  await assertOwner(ownerId, beatId, db);
+  await db.beat.delete({ where: { id: beatId } });
 }
