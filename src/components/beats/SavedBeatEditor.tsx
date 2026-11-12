@@ -20,7 +20,15 @@ export async function SavedBeatEditor({ params }: SavedBeatEditorProps) {
   // The same 404 for "doesn't exist" and "not yours", so private beats can't be discovered.
   // TODO(#9): send non-owners of a public beat to its listen-only page /b/{id} instead.
   if (!beat?.isOwner) notFound();
-  return <Editor beatId={beat.id} initialTitle={beat.title} initialPattern={beat.pattern} signedIn />;
+  return (
+    <Editor
+      beatId={beat.id}
+      initialTitle={beat.title}
+      initialPattern={beat.pattern}
+      signedIn
+      initialIsPublic={beat.isPublic}
+    />
+  );
 }
 
 async function findBeat(viewerId: string | null, id: string): Promise<BeatDetail | null> {

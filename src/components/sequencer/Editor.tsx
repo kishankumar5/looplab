@@ -1,10 +1,13 @@
 "use client";
 
 import { SaveBar } from "@/components/beats/SaveBar";
+import { ShareButton } from "@/components/beats/ShareButton";
+import { VisibilityToggle } from "@/components/beats/VisibilityToggle";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSequencer } from "@/hooks/useSequencer";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
 import { useUndoShortcuts } from "@/hooks/useUndoShortcuts";
+import { useState } from "react";
 import type { BeatPattern } from "@/lib/validation/beat";
 import { StepGrid } from "./StepGrid";
 import { Transport } from "./Transport";
@@ -26,20 +29,30 @@ export interface EditorProps {
 /**
  * The beat editor (mockup Editor screen). Every edit goes through useSequencer, which keeps the
  * undo/redo history; usePlayback makes the audio follow the result. Saving (SaveBar) reads the
- * pattern but never changes it, so it adds nothing to the history.
+ * pattern but never changes it, so it adds nothing to the history. Visibility is saved on its own
+ * (VisibilityToggle), so it isn't part of the history either.
  */
-export function Editor({ beatId, initialTitle, initialPattern, signedIn, onCreated }: EditorProps) {
+export function Editor(props: EditorProps) {
+  const { beatId, initialTitle, initialPattern, signedIn, initialIsPublic = false, onCreated } = props;
   const sequencer = useSequencer(initialPattern);
   const { pattern } = sequencer;
   const playback = usePlayback(pattern);
   useSpaceShortcut(playback.toggle);
   useUndoShortcuts(sequencer.undo, sequencer.redo);
+  // The id is known once the beat is saved, which for a new beat happens while the editor is open.
+  const [savedId, setSavedId] = useState(beatId);
+  const [isPublic, setIsPublic] = useState(initialIsPublic);
+  const created = (id: string) => {
+    setSavedId(id);
+    onCreated?.(id);
+  };
   return (
     <>
-      {/* The title bar: the beat's name (editable), its tempo, and Save. */}
+      {/* The title bar: the beat's name (editable), its tempo, who can see it, and Save. */}
       <div className="mb-3.5">
-        <SaveBar beatId={beatId} initialTitle={initialTitle} pattern={pattern} signedIn={signedIn} onCreated={onCreated}>
+        <SaveBar beatId={beatId} initialTitle={initialTitle} pattern={pattern} signedIn={signedIn} onCreated={created}>
           <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{pattern.bpm} BPM</span>
+          {savedId && <VisibilityToggle beatId={savedId} isPublic={isPublic} onChange={setIsPublic} />}
         </SaveBar>
       </div>
       <Transport
@@ -53,7 +66,9 @@ export function Editor({ beatId, initialTitle, initialPattern, signedIn, onCreat
         onUndo={sequencer.undo}
         onRedo={sequencer.redo}
         onClear={() => sequencer.edit({ type: "clear" })}
-      />
+      >
+        <ShareButton beatId={savedId} isPublic={isPublic} />
+      </Transport>
       <StepGrid
         pattern={pattern}
         playheadStep={playback.currentStep}

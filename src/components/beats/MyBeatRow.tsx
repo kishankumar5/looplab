@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { VisibilityToggle } from "./VisibilityToggle";
 
 export interface MyBeatRowProps {
   id: string;
@@ -15,9 +16,13 @@ export interface MyBeatRowProps {
 const button =
   "rounded-lg border border-line px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-2";
 
-/** One row on My Beats (mockup My Beats screen): open, rename inline, delete with confirmation. */
-export function MyBeatRow({ id, title, bpm, isPublic, editedAgo }: MyBeatRowProps) {
+/**
+ * One row on My Beats (mockup My Beats screen): open, rename inline, delete with confirmation, and
+ * make public or private.
+ */
+export function MyBeatRow({ id, title, bpm, isPublic: savedIsPublic, editedAgo }: MyBeatRowProps) {
   const router = useRouter();
+  const [isPublic, setIsPublic] = useState(savedIsPublic);
   const [renaming, setRenaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,11 +74,6 @@ export function MyBeatRow({ id, title, bpm, isPublic, editedAgo }: MyBeatRowProp
       ) : (
         <span className="min-w-[140px] flex-1 font-bold">{title}</span>
       )}
-      <span
-        className={`rounded-full border px-2.5 py-0.5 text-xs ${isPublic ? "border-accent-2 text-accent-2" : "border-line text-muted"}`}
-      >
-        {isPublic ? "Public" : "Private"}
-      </span>
       <span className="text-sm text-muted">
         {bpm} BPM · edited {editedAgo}
       </span>
@@ -88,6 +88,14 @@ export function MyBeatRow({ id, title, bpm, isPublic, editedAgo }: MyBeatRowProp
       <button type="button" onClick={remove} className={`${button} text-danger`}>
         Delete
       </button>
+      <VisibilityToggle
+        beatId={id}
+        isPublic={isPublic}
+        onChange={(next) => {
+          setIsPublic(next);
+          router.refresh();
+        }}
+      />
       {error && (
         <p role="alert" className="w-full text-sm text-danger">
           {error}
