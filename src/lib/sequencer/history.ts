@@ -1,7 +1,10 @@
 /** How many changes undo can go back (PRD US-3: at least 50). */
 export const HISTORY_LIMIT = 100;
 
-/** Undo/redo state around any value. Pure: no React, no browser APIs. */
+/**
+ * Undo/redo state around plain data such as a beat pattern (JSON values, compared by value).
+ * Pure: no React, no browser APIs.
+ */
 export interface History<S> {
   /** Earlier states, oldest first; at most HISTORY_LIMIT of them. */
   past: S[];
@@ -62,7 +65,12 @@ export function canRedo<S>(history: History<S>): boolean {
 }
 
 function dragChanged<S>(history: History<S>): boolean {
-  return history.dragStart !== null && history.dragStart !== history.present;
+  return history.dragStart !== null && !same(history.dragStart, history.present);
+}
+
+/** Equal by value, so a slider dragged away and back is no change, though every move made a new object. */
+function same<S>(a: S, b: S): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
 /** Adds `state` as the newest past entry, dropping the oldest beyond `limit`. */
@@ -71,7 +79,7 @@ function pushPast<S>(past: S[], state: S, limit: number): S[] {
 }
 
 function record<S>(history: History<S>, next: S, limit: number): History<S> {
-  if (next === history.present) return history;
+  if (same(next, history.present)) return history;
   return { past: pushPast(history.past, history.present, limit), present: next, future: [], dragStart: null };
 }
 
@@ -84,7 +92,7 @@ function preview<S>(history: History<S>, next: S): History<S> {
 function endDrag<S>(history: History<S>, limit: number): History<S> {
   const { dragStart } = history;
   if (dragStart === null) return history;
-  if (dragStart === history.present) return { ...history, dragStart: null };
+  if (same(dragStart, history.present)) return { ...history, present: dragStart, dragStart: null };
   return { past: pushPast(history.past, dragStart, limit), present: history.present, future: [], dragStart: null };
 }
 
