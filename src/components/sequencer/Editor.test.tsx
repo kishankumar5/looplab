@@ -1,15 +1,31 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as engine from "@/lib/audio/engine";
-import { Editor } from "./Editor";
+import { defaultPattern } from "@/lib/validation/beat";
+import { Editor, type EditorProps } from "./Editor";
 
 // Tests never play sound: they check what the audio engine was told.
 vi.mock("@/lib/audio/engine");
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/" }));
+const fetchMock = vi.fn();
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubGlobal("fetch", fetchMock);
 });
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+/** A new, unsaved beat, signed out, unless the test says otherwise. */
+const NEW_BEAT: EditorProps = { beatId: null, initialTitle: "", signedIn: false };
+
+function renderEditor(props: Partial<EditorProps> = {}) {
+  return render(<Editor {...NEW_BEAT} {...props} />);
+}
 
 /** Labels of the cells marked as the playhead column. */
 function playheadCells() {
@@ -21,13 +37,13 @@ function playheadCells() {
 
 describe("Editor", () => {
   it("starts with every step off", () => {
-    render(<Editor />);
+    renderEditor();
     expect(screen.getAllByRole("button", { name: /step \d+$/ })).toHaveLength(80);
     expect(screen.queryAllByRole("button", { pressed: true })).toHaveLength(0);
   });
 
   it("toggles a step on and off when its cell is clicked", async () => {
-    render(<Editor />);
+    renderEditor();
     const cell = screen.getByRole("button", { name: "Kick step 5" });
 
     await userEvent.click(cell);
@@ -38,7 +54,7 @@ describe("Editor", () => {
   });
 
   it("toggles a focused step with the keyboard", async () => {
-    render(<Editor />);
+    renderEditor();
     const cell = screen.getByRole("button", { name: "Synth step 12" });
     cell.focus();
 
@@ -50,7 +66,7 @@ describe("Editor", () => {
   });
 
   it("turns every step off when Clear is clicked", async () => {
-    render(<Editor />);
+    renderEditor();
     for (const name of ["Kick step 1", "Snare step 5", "Hi-hat step 16"]) {
       await userEvent.click(screen.getByRole("button", { name }));
     }
@@ -60,24 +76,18 @@ describe("Editor", () => {
     expect(screen.queryAllByRole("button", { pressed: true })).toHaveLength(0);
   });
 
-  it("shows the beat's title and tempo above the transport", () => {
-    render(<Editor />);
-    expect(screen.getByRole("heading", { name: "Untitled beat" })).toBeInTheDocument();
-    // Once in the title area, once next to the tempo slider.
-    expect(screen.getAllByText("82 BPM")).toHaveLength(2);
-  });
 });
 
 describe("Editor playback", () => {
   it("does not start audio until Play is clicked", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
     expect(engine.start).not.toHaveBeenCalled();
     expect(engine.update).not.toHaveBeenCalled();
   });
 
   it("plays and stops the loop, switching the button between ▶ and ■", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
     const play = screen.getByRole("button", { name: "Play" });
     expect(play).toHaveTextContent("▶");
@@ -95,7 +105,7 @@ describe("Editor playback", () => {
   });
 
   it("toggles play and stop with Space when focus is not on a control", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.keyboard(" ");
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
     expect(engine.start).toHaveBeenCalledOnce();
@@ -105,7 +115,7 @@ describe("Editor playback", () => {
   });
 
   it("leaves Space to the cell, button, or slider that has focus", async () => {
-    render(<Editor />);
+    renderEditor();
     const cell = screen.getByRole("button", { name: "Bass step 2" });
     cell.focus();
     await userEvent.keyboard(" ");
@@ -121,7 +131,7 @@ describe("Editor playback", () => {
   });
 
   it("highlights the column the engine is playing, and nothing once stopped", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Play" }));
     const onStep = vi.mocked(engine.start).mock.calls[0][1];
 
@@ -136,7 +146,7 @@ describe("Editor playback", () => {
   });
 
   it("sends a cell toggled while playing to the engine, without restarting", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Play" }));
     await userEvent.click(screen.getByRole("button", { name: "Snare step 5" }));
 
@@ -163,7 +173,7 @@ function dragTempo(values: number[]) {
 
 describe("Editor undo and redo", () => {
   it("disables Undo and Redo until there is something to undo or redo", async () => {
-    render(<Editor />);
+    renderEditor();
     expect(undoButton()).toBeDisabled();
     expect(redoButton()).toBeDisabled();
 
@@ -182,7 +192,7 @@ describe("Editor undo and redo", () => {
   });
 
   it("clears Redo after a new change", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
     await userEvent.click(screen.getByRole("button", { name: "Kick step 2" }));
     await userEvent.click(undoButton());
@@ -194,7 +204,7 @@ describe("Editor undo and redo", () => {
   });
 
   it("undoes Clear and tempo changes", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
     await userEvent.click(screen.getByRole("button", { name: "Hi-hat step 9" }));
     dragTempo([100]);
@@ -210,7 +220,7 @@ describe("Editor undo and redo", () => {
   });
 
   it("makes a whole tempo drag one undo step", async () => {
-    render(<Editor />);
+    renderEditor();
     dragTempo([84, 90, 97, 105, 112]);
     expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("112");
     expect(screen.getAllByText("112 BPM")).toHaveLength(2);
@@ -221,7 +231,7 @@ describe("Editor undo and redo", () => {
   });
 
   it("undoes with Cmd+Z or Ctrl+Z, and redoes with Shift+Cmd+Z, Shift+Ctrl+Z, or Ctrl+Y", async () => {
-    render(<Editor />);
+    renderEditor();
     for (const name of ["Kick step 1", "Kick step 2", "Kick step 3"]) {
       await userEvent.click(screen.getByRole("button", { name }));
     }
@@ -242,7 +252,7 @@ describe("Editor undo and redo", () => {
   });
 
   it("uses the shortcuts while the tempo slider has focus", async () => {
-    render(<Editor />);
+    renderEditor();
     dragTempo([120]);
     screen.getByRole("slider", { name: "Tempo" }).focus();
     await userEvent.keyboard("{Control>}z{/Control}");
@@ -253,7 +263,7 @@ describe("Editor undo and redo", () => {
     render(
       <>
         <input aria-label="Notes" />
-        <Editor />
+        <Editor {...NEW_BEAT} />
       </>,
     );
     await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
@@ -265,7 +275,7 @@ describe("Editor undo and redo", () => {
   });
 
   it("does not undo playback: undo while playing changes what plays, not whether it plays", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Play" }));
     await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
     act(() => vi.mocked(engine.start).mock.calls[0][1](2));
@@ -279,9 +289,64 @@ describe("Editor undo and redo", () => {
   });
 });
 
+const okJson = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
+
+describe("Editor title and saving", () => {
+  it("shows the beat's name once, in the title field, with the tempo beside it", () => {
+    renderEditor();
+    const title = screen.getByRole("textbox", { name: "Beat title" });
+    expect(title).toHaveValue("");
+    expect(title).toHaveAttribute("placeholder", "Untitled beat");
+    expect(screen.queryByText("Untitled beat")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Untitled beat" })).toBeNull();
+    // Once beside the title, once next to the tempo slider.
+    expect(screen.getAllByText("82 BPM")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("starts from the given beat, with a fresh undo history", () => {
+    const pattern = defaultPattern();
+    pattern.bpm = 96;
+    pattern.tracks.snare.steps[4] = true;
+    renderEditor({ beatId: "b1", initialTitle: "rainy window", initialPattern: pattern, signedIn: true });
+
+    expect(screen.getByRole("textbox", { name: "Beat title" })).toHaveValue("rainy window");
+    expect(onCells()).toEqual(["Snare step 5"]);
+    expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("96");
+    expect(undoButton()).toBeDisabled();
+    expect(redoButton()).toBeDisabled();
+  });
+
+  it("saves the current pattern without adding an undo step", async () => {
+    fetchMock.mockReturnValue(okJson({ beat: { id: "b1", title: "rainy window" } }));
+    renderEditor({ beatId: "b1", initialTitle: "rainy window", signedIn: true });
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/beats/b1", expect.objectContaining({ method: "PATCH" }));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).pattern.tracks.kick.steps[0]).toBe(true);
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+
+    await userEvent.click(undoButton());
+    expect(onCells()).toEqual([]);
+    expect(undoButton()).toBeDisabled();
+  });
+
+  it("lets you type a title without playing, undoing, or toggling anything", async () => {
+    renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    const title = screen.getByRole("textbox", { name: "Beat title" });
+    await userEvent.type(title, "rainy window");
+    await userEvent.keyboard("{Control>}z{/Control}");
+
+    expect(engine.start).not.toHaveBeenCalled();
+    expect(onCells()).toEqual(["Kick step 1"]);
+  });
+});
+
 describe("Editor tempo", () => {
   it("has a Tempo slider from 60 to 140 BPM that starts at 82", () => {
-    render(<Editor />);
+    renderEditor();
     const tempo = screen.getByRole("slider", { name: "Tempo" });
     expect(tempo).toHaveValue("82");
     expect(tempo).toHaveAttribute("min", "60");
@@ -289,7 +354,7 @@ describe("Editor tempo", () => {
   });
 
   it("shows the new tempo and applies it live while playing", async () => {
-    render(<Editor />);
+    renderEditor();
     await userEvent.click(screen.getByRole("button", { name: "Play" }));
     fireEvent.change(screen.getByRole("slider", { name: "Tempo" }), { target: { value: "120" } });
 
