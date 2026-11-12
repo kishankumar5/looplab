@@ -48,7 +48,7 @@ flowchart LR
 | Click ♥ on a card | `LikeButton` (client) → `POST /api/beats/{id}/like` → `getCurrentUserId()` → `likeBeat()` → JSON `{ liked, likeCount }` |
 | Register | `AuthForm` → `POST /api/auth/register` → Zod `registerSchema` → `createUser()` (bcrypt) → then Auth.js `signIn("credentials")` sets the JWT cookie |
 | Edit and play a beat | Grid click → `useSequencer` (`sequencerReducer` wrapped by `withHistory`) → new pattern → `usePlayback` → `engine.update()`. The first Play click imports Tone.js and unlocks audio. No server involved. |
-| Save a new beat | `SaveBar` → `POST /api/beats` → `createBeat()` → the URL becomes `/beats/{id}`. Signed out, it keeps the beat as a draft in `localStorage`, goes to `/signin`, and the editor at `/` starts from that draft when you come back. |
+| Save a new beat | `SaveBar` → `POST /api/beats` → `createBeat()` → `history.replaceState` changes the URL to `/beats/{id}` without a navigation, so the same editor stays on screen (still playing, same undo history) and later saves `PATCH` that beat. A link back to `/` afterwards starts a new beat; Back to a `/beats/{id}` the editor isn't showing loads that beat's page. Signed out, Save keeps the beat as a draft in `localStorage`, goes to `/signin`, and the editor at `/` starts from that draft when you come back. |
 | Open `/beats/{id}` | `SavedBeatEditor` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `getBeat()` → the owner gets the editor, starting a fresh undo history from the saved beat; anyone else gets the 404 page. |
 
 ## The editor
