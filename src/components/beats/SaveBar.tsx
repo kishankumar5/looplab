@@ -14,6 +14,8 @@ export interface SaveBarProps {
   signedIn: boolean;
   /** Shown right after the title, such as the tempo. */
   children?: ReactNode;
+  /** Called once, when the first save creates the beat, before the address changes to /beats/{id}. */
+  onCreated?: (id: string) => void;
 }
 
 const DEFAULT_TITLE = "Untitled beat";

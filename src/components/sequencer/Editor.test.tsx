@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as engine from "@/lib/audio/engine";
@@ -13,6 +13,7 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   vi.resetAllMocks();
+  window.history.replaceState(null, "", "/");
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -330,6 +331,26 @@ describe("Editor title and saving", () => {
     await userEvent.click(undoButton());
     expect(onCells()).toEqual([]);
     expect(undoButton()).toBeDisabled();
+  });
+
+  it("keeps playing and keeps the undo history when the first save creates the beat", async () => {
+    fetchMock.mockReturnValueOnce(okJson({ beat: { id: "b9" } }, 201)).mockReturnValueOnce(okJson({ beat: { id: "b9" } }));
+    renderEditor({ signedIn: true });
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/beats/b9");
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+    expect(engine.stop).not.toHaveBeenCalled();
+    expect(engine.start).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(undoButton());
+    expect(onCells()).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/beats/b9", expect.objectContaining({ method: "PATCH" }));
   });
 
   it("lets you type a title without playing, undoing, or toggling anything", async () => {
