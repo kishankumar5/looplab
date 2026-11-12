@@ -71,6 +71,11 @@ describe("sequencerReducer", () => {
       sequencerReducer(state, { type: "clear" });
       expect(state).toEqual(busyPattern());
     });
+
+    it("returns the same state when every step is already off, so history gets no empty entries", () => {
+      const state = sequencerReducer(busyPattern(), { type: "clear" });
+      expect(sequencerReducer(state, { type: "clear" })).toBe(state);
+    });
   });
 
   describe("setTempo", () => {
