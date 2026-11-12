@@ -14,8 +14,17 @@ interface Rig {
   channels: Record<TrackId, Tone.Gain>;
 }
 
-/** Headroom so every row hitting at once doesn't clip, even with every volume at 100. */
-const MASTER_DB = -4;
+/**
+ * How loud a row at the default volume (80) plays: -4 dB, the level every row had before per-row
+ * volume, which leaves headroom for every row hitting at once.
+ */
+const DEFAULT_ROW_DB = -4;
+/**
+ * The master's level, so that the default row's channel (trackGain 0.64, about -3.9 dB) plus the
+ * master comes out at DEFAULT_ROW_DB. That puts the master at about -0.1 dB. Rows turned up above 80
+ * eat into the headroom: every row at 100 hitting at once is about 3.9 dB louder than before.
+ */
+const MASTER_DB = DEFAULT_ROW_DB - 20 * Math.log10(trackGain(defaultPattern().tracks.kick));
 /** How quickly a channel reaches a new volume: fast, but a ramp, so the change doesn't click. */
 const LEVEL_RAMP_SECONDS = 0.02;
 
