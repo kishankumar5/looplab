@@ -52,7 +52,7 @@ flowchart LR
 | Open `/beats/{id}` | `SavedBeatEditor` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `findBeat()` → the owner gets the editor, starting a fresh undo history from the saved beat; anyone else is sent to `/b/{id}` for a public beat, or gets the 404 page for a private one. |
 | Make a beat public | `VisibilityToggle` (editor title bar, or a My Beats row) → `PATCH /api/beats/{id}` `{ isPublic }` → `updateBeat()` (owner only). Saved right away; not part of the undo history. |
 | Copy share link | `ShareButton` (enabled only for a saved, public beat) → `navigator.clipboard.writeText("{origin}/b/{id}")` → "Link copied" toast. No server involved. |
-| Open `/b/{id}` | `SharedBeat` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `findBeat()` → `ListenOnlyBeat`: title, creator, tempo, Play/Stop through the same `usePlayback` and engine, and the read-only grid. A private beat is the same 404 page as an unknown id, except for its owner, who also gets an Edit link. |
+| Open `/b/{id}` | `SharedBeat` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `findBeat()` → `ListenOnlyBeat`: title, creator, tempo, Play/Stop through the same `usePlayback` and engine, and the read-only grid. A private beat gets the same not-found page as an unknown id (`src/app/b/[id]/not-found.tsx`: "This beat is private or doesn't exist", with a link to the gallery), except for its owner, who sees the beat and an Edit link. |
 
 ## The editor
 
