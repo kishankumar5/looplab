@@ -18,6 +18,8 @@ vi.mock("@/lib/db/prisma", async (importOriginal) => {
 });
 
 const NOT_FOUND = { digest: "NEXT_HTTP_ERROR_FALLBACK;404" };
+/** Next's redirect() to the beat's listen-only page. */
+const toSharePage = (id: string) => ({ digest: `NEXT_REDIRECT;replace;/b/${id};307;` });
 
 /** Renders the content of /beats/{id} for the current viewer. */
 function openBeatPage(id: string) {
@@ -81,15 +83,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)("saved-beat editor page /beats/[
     await expect(openBeatPage(privateBeat.id)).rejects.toMatchObject(NOT_FOUND);
   });
 
-  it("shows the 404 page for someone else's public beat, since only the owner can edit it", async () => {
+  it("sends anyone else to the listen-only page of a public beat, since only the owner can edit it (US-5)", async () => {
     const { someoneElse, publicBeat } = await seedBeats();
     viewer.id = someoneElse.id;
-    await expect(openBeatPage(publicBeat.id)).rejects.toMatchObject(NOT_FOUND);
+    await expect(openBeatPage(publicBeat.id)).rejects.toMatchObject(toSharePage(publicBeat.id));
   });
 
-  it("shows the 404 page when signed out", async () => {
+  it("signed out: the 404 page for a private beat, the listen-only page for a public one", async () => {
     const { privateBeat, publicBeat } = await seedBeats();
     await expect(openBeatPage(privateBeat.id)).rejects.toMatchObject(NOT_FOUND);
-    await expect(openBeatPage(publicBeat.id)).rejects.toMatchObject(NOT_FOUND);
+    await expect(openBeatPage(publicBeat.id)).rejects.toMatchObject(toSharePage(publicBeat.id));
   });
 });

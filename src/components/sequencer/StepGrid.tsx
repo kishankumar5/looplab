@@ -6,8 +6,8 @@ export interface StepGridProps {
   pattern: BeatPattern;
   /** 0-based step the loop is playing, highlighted as the playhead; null or omitted when stopped. */
   playheadStep?: number | null;
-  /** `step` is 0-based. */
-  onToggleStep: (track: TrackId, step: number) => void;
+  /** `step` is 0-based. Leave it out for a read-only grid (the listen-only page): nothing toggles. */
+  onToggleStep?: (track: TrackId, step: number) => void;
 }
 
 /** Steps are shown in 4 blocks of 4 so beats are easy to count (PRD US-2): [[0..3], [4..7], ...]. */
@@ -51,7 +51,7 @@ export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGri
                   step={step}
                   on={pattern.tracks[track].steps[step]}
                   playhead={step === playheadStep}
-                  onToggle={() => onToggleStep(track, step)}
+                  onToggle={() => onToggleStep?.(track, step)}
                 />
               ))}
             </div>
