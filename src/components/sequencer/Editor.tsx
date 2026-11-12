@@ -17,6 +17,8 @@ export interface EditorProps {
   /** The beat to start from: the first state of a fresh undo history. Default: an empty beat. */
   initialPattern?: BeatPattern;
   signedIn: boolean;
+  /** Whether the saved beat is public (anyone with its /b/{id} link can listen). Default: private. */
+  initialIsPublic?: boolean;
   /** Called once, when the first save creates the beat, before the address changes to /beats/{id}. */
   onCreated?: (id: string) => void;
 }
