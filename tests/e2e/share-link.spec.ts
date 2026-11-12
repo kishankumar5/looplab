@@ -74,10 +74,16 @@ test("share a beat by link: a signed-out friend can listen but not edit, until i
   await row.getByRole("button", { name: "Make private" }).click();
   await expect(row.getByText("Private", { exact: true })).toBeVisible();
 
-  // ...so the friend now gets the 404 page, while the owner still sees it, with a way back to edit.
+  // ...so the friend gets the not-found page, the same one as for a beat that doesn't exist...
+  const hidden = friend.getByRole("heading", { level: 1, name: "This beat is private or doesn't exist" });
   await friend.goto(link);
-  await expect(friend.getByText("This page could not be found.")).toBeVisible();
+  await expect(hidden).toBeVisible();
   await expect(friend.getByRole("heading", { name: title })).toHaveCount(0);
+  await expect(friend.getByRole("link", { name: "Browse the gallery" })).toHaveAttribute("href", "/gallery");
+  await friend.goto(`${origin}/b/no-such-beat`);
+  await expect(hidden).toBeVisible();
+
+  // ...while the owner still sees it, with a way back to edit.
   await page.goto(link);
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
   await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", `/beats/${id}`);
