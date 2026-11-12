@@ -224,7 +224,12 @@ describe("audio engine", () => {
     // master -> limiter -> make-up trim -> speakers, and nothing else reaches the speakers.
     expect(fake.master?.outputs).toEqual([limiter]);
     expect(limiter?.options).toMatchObject({ threshold: -1, ratio: 20, knee: 0 });
-    expect(limiter?.options.attack).toBeLessThanOrEqual(0.003);
+    // Hits land every 16th note, so the limiter must react at once (attack 0) and still be holding
+    // the gain down when the next hit lands (release 100 ms or more). Measured in Chromium with
+    // every row at 100: a 10 ms release let the loudest beat reach +0.8 dBFS, and 250 ms held it at
+    // -0.5 dBFS, at 82 and at 140 BPM.
+    expect(limiter?.options.attack).toBe(0);
+    expect(limiter?.options.release).toBeGreaterThanOrEqual(0.1);
     const trim = limiter?.outputs[0] as FakeChannel | undefined;
     expect(limiter?.outputs).toHaveLength(1);
     expect(fake.toSpeakers).toEqual([trim]);
