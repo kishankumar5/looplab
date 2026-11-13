@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: LoopLab API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Public API for LoopLab, a browser-based lo-fi beat maker (PRD US-7).
 
@@ -290,6 +290,31 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/beats/{id}/remix:
+    parameters:
+      - $ref: "#/components/parameters/BeatId"
+    post:
+      tags: [Beats]
+      summary: Remix a beat
+      description: |
+        Copies a public beat (or one of your own) into a new **private** beat you own, titled
+        "{original title} (remix)" and credited to the original. Someone else's private beat
+        returns 404, the same as a beat that doesn't exist.
+      operationId: remixBeat
+      security: [{ sessionCookie: [] }]
+      responses:
+        "201":
+          description: The new remix.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [beat]
+                properties:
+                  beat: { $ref: "#/components/schemas/BeatDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/openapi:
     get:
       tags: [Docs]
@@ -419,7 +444,7 @@ components:
 
     BeatDetail:
       type: object
-      required: [id, title, pattern, isPublic, isOwner, creator, remixedFrom, createdAt, updatedAt]
+      required: [id, title, pattern, isPublic, isOwner, creator, isRemix, remixedFrom, createdAt, updatedAt]
       properties:
         id: { type: string }
         title: { type: string }
@@ -430,30 +455,44 @@ components:
           type: object
           properties:
             displayName: { type: string }
+        isRemix:
+          type: boolean
+          description: True for remixes, even after the original is deleted or made private.
         remixedFrom:
-          description: The original, if this is a remix and the original is still public. Otherwise null.
+          description: |
+            The original, if this is a remix and you can still see the original (it's public, or it's yours).
+            Null otherwise. When isRemix is true and this is null, the original is no longer available.
           oneOf:
             - type: "null"
-            - type: object
-              properties:
-                id: { type: string }
-                title: { type: string }
-                creator:
-                  type: object
-                  properties:
-                    displayName: { type: string }
+            - $ref: "#/components/schemas/RemixOriginal"
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
     MyBeat:
       type: object
-      required: [id, title, bpm, isPublic, updatedAt]
+      required: [id, title, bpm, isPublic, updatedAt, isRemix, remixedFrom]
       properties:
         id: { type: string }
         title: { type: string }
         bpm: { type: integer }
         isPublic: { type: boolean }
         updatedAt: { type: string, format: date-time }
+        isRemix: { type: boolean }
+        remixedFrom:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/RemixOriginal"
+
+    RemixOriginal:
+      type: object
+      required: [id, title, creator]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        creator:
+          type: object
+          properties:
+            displayName: { type: string }
 
     GalleryBeat:
       type: object

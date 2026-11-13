@@ -1,6 +1,6 @@
 import type * as Tone from "tone";
 import { beforeEach, describe, expect, it } from "vitest";
-import { TRACK_IDS } from "@/lib/validation/beat";
+import { TRACK_IDS, type TrackId } from "@/lib/validation/beat";
 import { createVoices } from "./voices";
 
 /** Stands in for any Tone node or instrument and records what it was asked to do. */
@@ -30,10 +30,11 @@ class FakeNode {
 // so these tests don't care which synth makes which sound.
 const fakeTone = new Proxy({}, { get: () => FakeNode }) as unknown as typeof Tone;
 
+/** One output per row (the engine's channels, which set each row's volume and mute). */
 function build() {
-  const output = new FakeNode();
-  const voices = createVoices(fakeTone, output as unknown as Tone.InputNode);
-  return { output, voices };
+  const outputs = Object.fromEntries(TRACK_IDS.map((track) => [track, new FakeNode()])) as Record<TrackId, FakeNode>;
+  const voices = createVoices(fakeTone, outputs as unknown as Parameters<typeof createVoices>[1]);
+  return { outputs, voices };
 }
 
 /** Plays one row and returns the instruments that were triggered. */
@@ -43,8 +44,10 @@ function play(voice: (time: number) => void, time: number) {
   return FakeNode.created.filter((node) => node.triggers.length > 0);
 }
 
+/** Whether `from` connects to `target`, directly or through other nodes. Anything else connects nowhere. */
 function reaches(from: FakeNode, target: FakeNode): boolean {
-  return from === target || from.outputs.some((next) => reaches(next, target));
+  if (from === target) return true;
+  return from instanceof FakeNode && from.outputs.some((next) => reaches(next, target));
 }
 
 beforeEach(() => {
@@ -68,11 +71,11 @@ describe("createVoices", () => {
     }
   });
 
-  it("routes every instrument into the output, so effects on it apply to all rows", () => {
-    const { output, voices } = build();
+  it("routes each row's instrument into that row's own output, and no other row's", () => {
+    const { outputs, voices } = build();
     for (const track of TRACK_IDS) {
       const [instrument] = play(voices[track], 0);
-      expect(reaches(instrument, output), track).toBe(true);
+      for (const other of TRACK_IDS) expect(reaches(instrument, outputs[other]), `${track} -> ${other}`).toBe(other === track);
     }
   });
 });

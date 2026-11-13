@@ -7,6 +7,7 @@ import { ListenOnlyBeat, type ListenOnlyBeatProps } from "./ListenOnlyBeat";
 
 // Tests never play sound: they check what the audio engine was told.
 vi.mock("@/lib/audio/engine");
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/b/b1" }));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -18,6 +19,7 @@ function savedPattern() {
   pattern.tracks.kick.steps[0] = true;
   pattern.tracks.snare.steps[4] = true;
   pattern.tracks.hihat.volume = 40;
+  pattern.tracks.bass.muted = true;
   return pattern;
 }
 
@@ -65,6 +67,8 @@ describe("ListenOnlyBeat (US-5)", () => {
     await userEvent.tab();
     expect(screen.getByRole("button", { name: "Play" })).toHaveFocus();
     await userEvent.tab();
+    expect(screen.getByRole("button", { name: "Remix" })).toHaveFocus();
+    await userEvent.tab();
     expect(document.body).toHaveFocus();
   });
 
@@ -105,6 +109,17 @@ describe("ListenOnlyBeat (US-5)", () => {
     await userEvent.keyboard(" ");
     expect(engine.start).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it("plays the saved volume and mute, and shows which rows are muted, with no controls to change them", async () => {
+    renderBeat();
+    expect(within(grid()).getAllByText("Muted")).toHaveLength(1);
+    expect(screen.queryAllByRole("button", { name: /^Mute/ })).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+    const [played] = vi.mocked(engine.start).mock.calls[0];
+    expect(played.tracks.hihat).toMatchObject({ volume: 40, muted: false });
+    expect(played.tracks.bass).toMatchObject({ volume: 80, muted: true });
   });
 
   it("gives the owner an Edit link back to the editor", () => {

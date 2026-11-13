@@ -5,6 +5,9 @@ import { PlayButton } from "@/components/sequencer/PlayButton";
 import { StepGrid } from "@/components/sequencer/StepGrid";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
+import { RemixButton } from "./RemixButton";
+import { RemixCredit } from "./RemixCredit";
+import type { RemixOriginal } from "@/lib/db/beats";
 import type { BeatPattern } from "@/lib/validation/beat";
 
 export interface ListenOnlyBeatProps {
@@ -16,6 +19,10 @@ export interface ListenOnlyBeatProps {
   /** The viewer owns the beat: show an Edit link back to the editor. */
   isOwner: boolean;
   isPublic: boolean;
+  /** Signed-in viewers can remix; signed-out ones are sent to sign in first. */
+  signedIn?: boolean;
+  isRemix?: boolean;
+  remixedFrom?: RemixOriginal | null;
 }
 
 /**
@@ -23,7 +30,8 @@ export interface ListenOnlyBeatProps {
  * Play/Stop, and the grid, read-only. No editing controls. Playback uses the same engine as the
  * editor, with the saved pattern as it is.
  */
-export function ListenOnlyBeat({ id, title, creator, pattern, isOwner, isPublic }: ListenOnlyBeatProps) {
+export function ListenOnlyBeat(props: ListenOnlyBeatProps) {
+  const { id, title, creator, pattern, isOwner, isPublic, signedIn = false, isRemix = false, remixedFrom = null } = props;
   const playback = usePlayback(pattern);
   useSpaceShortcut(playback.toggle);
   return (
@@ -33,6 +41,9 @@ export function ListenOnlyBeat({ id, title, creator, pattern, isOwner, isPublic 
         <p className="text-sm text-muted">
           by <b className="text-text">{creator}</b> · {pattern.bpm} BPM
         </p>
+        <div className="w-full">
+          <RemixCredit isRemix={isRemix} remixedFrom={remixedFrom} />
+        </div>
       </div>
       {isOwner && !isPublic && (
         <p className="mb-3.5 rounded-r-lg border-l-3 border-accent-2 bg-panel px-2.5 py-1.5 text-[13px] text-muted">
@@ -42,6 +53,7 @@ export function ListenOnlyBeat({ id, title, creator, pattern, isOwner, isPublic 
       <div className="mb-3 flex flex-wrap items-center gap-4 rounded-[10px] bg-panel px-3.5 py-3">
         <PlayButton playing={playback.playing} onToggle={playback.toggle} />
         <span className="flex-1" />
+        {!isOwner && <RemixButton beatId={id} signedIn={signedIn} />}
         {isOwner && (
           <Link
             href={`/beats/${id}`}

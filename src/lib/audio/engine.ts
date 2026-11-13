@@ -1,5 +1,6 @@
 import type * as Tone from "tone";
-import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern } from "@/lib/validation/beat";
+import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
+import { compressorMakeupDb, trackGain } from "./mix";
 import { createVoices, type Voices } from "./voices";
 
 /** Called with the 0-based step being heard, in time with the sound, while the loop plays. */
@@ -9,10 +10,35 @@ export type StepListener = (step: number) => void;
 interface Rig {
   tone: typeof Tone;
   voices: Voices;
+  /** One per row, between its instrument and the master: where volume and mute apply (PRD US-3). */
+  channels: Record<TrackId, Tone.Gain>;
 }
 
-/** Headroom so every row hitting at once doesn't clip. */
-const MASTER_DB = -4;
+/**
+ * How loud a row at the default volume (80) plays: -4 dB, the level every row had before per-row
+ * volume, which leaves headroom for every row hitting at once.
+ */
+const DEFAULT_ROW_DB = -4;
+/**
+ * The master's level, so that the default row's channel (trackGain 0.64, about -3.9 dB) plus the
+ * master comes out at DEFAULT_ROW_DB. That puts the master at about -0.1 dB. Rows turned up past 80
+ * can push the mix over full scale; the limiter after the master stops it clipping.
+ */
+const MASTER_DB = DEFAULT_ROW_DB - 20 * Math.log10(trackGain(defaultPattern().tracks.kick));
+
+/**
+ * A limiter on the master output: a compressor at 20:1 with a hard knee (Tone.Limiter keeps a 30 dB
+ * soft knee, which barely limits near full scale), just under 0 dBFS. It reacts at once and holds
+ * for 250 ms, so the gain is still down when the next 16th note lands. Measured in Chromium, the
+ * loudest beat the grid allows (every row on every step, all at 100) then peaks at about -0.5 dBFS
+ * instead of +2.9, at 82 and 140 BPM. At the default volumes the same beat only just reaches the
+ * threshold, and anything quieter passes through untouched.
+ */
+const LIMITER = { threshold: -1, ratio: 20, knee: 0, attack: 0, release: 0.25 };
+/** Takes off the make-up gain the browser's compressor adds to everything, so the level stays put. */
+const LIMITER_TRIM = 10 ** (-compressorMakeupDb(LIMITER.threshold, LIMITER.ratio) / 20);
+/** How quickly a channel reaches a new volume: fast, but a ramp, so the change doesn't click. */
+const LEVEL_RAMP_SECONDS = 0.02;
 
 let rig: Rig | null = null;
 let pattern: BeatPattern = defaultPattern();
@@ -30,8 +56,10 @@ export async function start(next: BeatPattern, onStep: StepListener): Promise<vo
   playing = true;
   const id = ++session;
   try {
-    const { tone } = await loadRig();
+    const loaded = await loadRig();
     if (id !== session) return;
+    const { tone } = loaded;
+    setLevels(loaded, pattern);
     nextStep = 0;
     tone.getTransport().bpm.value = pattern.bpm;
     tone.getTransport().start();
@@ -42,10 +70,20 @@ export async function start(next: BeatPattern, onStep: StepListener): Promise<vo
   }
 }
 
-/** Hands the engine the latest pattern and tempo; a playing loop picks them up without restarting. */
+/**
+ * Hands the engine the latest pattern: tempo, volume, and mute change at once, and steps from the
+ * next pass, all without restarting the loop.
+ */
 export function update(next: BeatPattern): void {
   pattern = next;
-  if (rig) rig.tone.getTransport().bpm.value = next.bpm;
+  if (!rig) return;
+  rig.tone.getTransport().bpm.value = next.bpm;
+  setLevels(rig, next);
+}
+
+/** Each row's channel follows its volume and mute; a muted row is silent, ringing notes included. */
+function setLevels({ channels }: Rig, beat: BeatPattern): void {
+  for (const track of TRACK_IDS) channels[track].gain.rampTo(trackGain(beat.tracks[track]), LEVEL_RAMP_SECONDS);
 }
 
 /** Stops the loop and the playhead. */
@@ -69,12 +107,18 @@ async function loadRig(): Promise<Rig> {
 }
 
 function buildRig(tone: typeof Tone): Rig {
-  // TODO(#7): muffle and vinyl crackle go between the instruments and this master volume.
-  const master = new tone.Volume(MASTER_DB).toDestination();
+  // Row channels -> master -> limiter -> make-up trim -> speakers.
+  // TODO(#7): muffle and vinyl crackle go between the row channels and the master.
+  const output = new tone.Gain(LIMITER_TRIM).toDestination();
+  const limiter = new tone.Compressor(LIMITER).connect(output);
+  const master = new tone.Volume(MASTER_DB).connect(limiter);
+  const channels = Object.fromEntries(
+    TRACK_IDS.map((track) => [track, new tone.Gain(trackGain(pattern.tracks[track])).connect(master)]),
+  ) as Record<TrackId, Tone.Gain>;
   const transport = tone.getTransport();
   transport.cancel(0); // drop a schedule left behind by a hot-reloaded copy of this module
   transport.scheduleRepeat(tick, "16n");
-  return { tone, voices: createVoices(tone, master) };
+  return { tone, voices: createVoices(tone, channels), channels };
 }
 
 /**
@@ -85,7 +129,7 @@ function tick(time: number): void {
   if (!rig) return;
   const step = nextStep;
   nextStep = (step + 1) % STEPS_PER_BAR;
-  // TODO(#11): per-row volume and mute.
+  // Muted rows still trigger; their channel is silent (see setLevels).
   for (const track of TRACK_IDS) {
     if (pattern.tracks[track].steps[step]) rig.voices[track](time);
   }

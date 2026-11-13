@@ -114,4 +114,63 @@ describe("sequencerReducer", () => {
       expect(state).toEqual(busyPattern());
     });
   });
+
+  describe("setVolume", () => {
+    it("sets one row's volume and changes nothing else", () => {
+      const next = sequencerReducer(busyPattern(), { type: "setVolume", track: "snare", volume: 40 });
+      const expected = busyPattern();
+      expected.tracks.snare.volume = 40;
+      expect(next).toEqual(expected);
+    });
+
+    it("accepts both ends of the 0 to 100 range", () => {
+      expect(sequencerReducer(busyPattern(), { type: "setVolume", track: "kick", volume: 0 }).tracks.kick.volume).toBe(0);
+      expect(sequencerReducer(busyPattern(), { type: "setVolume", track: "kick", volume: 100 }).tracks.kick.volume).toBe(100);
+    });
+
+    it("keeps the volume inside 0 to 100", () => {
+      expect(sequencerReducer(busyPattern(), { type: "setVolume", track: "hihat", volume: -5 }).tracks.hihat.volume).toBe(0);
+      expect(sequencerReducer(busyPattern(), { type: "setVolume", track: "hihat", volume: 140 }).tracks.hihat.volume).toBe(100);
+    });
+
+    it("rounds to a whole number, which is what a saved beat stores", () => {
+      expect(sequencerReducer(busyPattern(), { type: "setVolume", track: "bass", volume: 61.6 }).tracks.bass.volume).toBe(62);
+    });
+
+    it("ignores a volume that is not a number", () => {
+      const state = busyPattern();
+      expect(sequencerReducer(state, { type: "setVolume", track: "kick", volume: Number.NaN })).toBe(state);
+    });
+
+    it("returns the same state when the volume does not change, so history gets no empty entries", () => {
+      const state = busyPattern();
+      expect(sequencerReducer(state, { type: "setVolume", track: "bass", volume: 55 })).toBe(state);
+    });
+
+    it("does not mutate the previous state", () => {
+      const state = busyPattern();
+      sequencerReducer(state, { type: "setVolume", track: "kick", volume: 10 });
+      expect(state).toEqual(busyPattern());
+    });
+  });
+
+  describe("toggleMute", () => {
+    it("mutes an unmuted row and changes nothing else", () => {
+      const next = sequencerReducer(busyPattern(), { type: "toggleMute", track: "kick" });
+      const expected = busyPattern();
+      expected.tracks.kick.muted = true;
+      expect(next).toEqual(expected);
+    });
+
+    it("unmutes a muted row, keeping its volume and steps", () => {
+      const next = sequencerReducer(busyPattern(), { type: "toggleMute", track: "synth" });
+      expect(next.tracks.synth).toEqual({ ...busyPattern().tracks.synth, muted: false });
+    });
+
+    it("does not mutate the previous state", () => {
+      const state = busyPattern();
+      sequencerReducer(state, { type: "toggleMute", track: "kick" });
+      expect(state).toEqual(busyPattern());
+    });
+  });
 });

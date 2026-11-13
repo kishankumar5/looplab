@@ -109,6 +109,13 @@ export async function unlikeBeat(userId: string, beatId: string, db: PrismaClien
   return likeState(userId, beatId, db);
 }
 
+/** The original a remix credits (PRD US-6). */
+export interface RemixOriginal {
+  id: string;
+  title: string;
+  creator: { displayName: string };
+}
+
 /** A beat as its page shows it: the editor (owner) or the listen-only share page. */
 export interface BeatDetail {
   id: string;
@@ -117,7 +124,10 @@ export interface BeatDetail {
   isPublic: boolean;
   isOwner: boolean;
   creator: { displayName: string };
-  remixedFrom: { id: string; title: string; creator: { displayName: string } } | null;
+  /** True for remixes, even when the original is gone (then remixedFrom is null). */
+  isRemix: boolean;
+  /** The original, if the viewer may still see it. */
+  remixedFrom: RemixOriginal | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -129,12 +139,26 @@ export interface MyBeat {
   bpm: number;
   isPublic: boolean;
   updatedAt: Date;
+  isRemix: boolean;
+  remixedFrom: RemixOriginal | null;
 }
 
 export interface BeatChanges {
   title?: string;
   pattern?: BeatPattern;
   isPublic?: boolean;
+}
+
+const originalSelect = {
+  select: { id: true, title: true, isPublic: true, ownerId: true, owner: { select: { displayName: true } } },
+} as const;
+
+type OriginalRow = Prisma.BeatGetPayload<{ select: (typeof originalSelect)["select"] }>;
+
+/** Credit only originals the viewer may still see: public ones, or their own (PRD US-6). */
+function credit(original: OriginalRow | null, viewerId: string | null): RemixOriginal | null {
+  if (!original || (!original.isPublic && original.ownerId !== viewerId)) return null;
+  return { id: original.id, title: original.title, creator: { displayName: original.owner.displayName } };
 }
 
 const detailSelect = {
@@ -146,13 +170,13 @@ const detailSelect = {
   createdAt: true,
   updatedAt: true,
   owner: { select: { displayName: true } },
-  remixedFrom: { select: { id: true, title: true, isPublic: true, owner: { select: { displayName: true } } } },
+  isRemix: true,
+  remixedFrom: originalSelect,
 } as const;
 
 type DetailRow = Prisma.BeatGetPayload<{ select: typeof detailSelect }>;
 
 function toDetail(row: DetailRow, viewerId: string | null): BeatDetail {
-  const original = row.remixedFrom;
   return {
     id: row.id,
     title: row.title,
@@ -160,12 +184,9 @@ function toDetail(row: DetailRow, viewerId: string | null): BeatDetail {
     pattern: beatPatternSchema.parse(row.pattern),
     isPublic: row.isPublic,
     isOwner: row.ownerId === viewerId,
+    isRemix: row.isRemix,
     creator: { displayName: row.owner.displayName },
-    // Credit only originals the viewer may still see (PRD US-6).
-    remixedFrom:
-      original && original.isPublic
-        ? { id: original.id, title: original.title, creator: { displayName: original.owner.displayName } }
-        : null,
+    remixedFrom: credit(row.remixedFrom, viewerId),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -195,9 +216,9 @@ export async function listMyBeats(ownerId: string, db: PrismaClient = prisma): P
   const rows = await db.beat.findMany({
     where: { ownerId },
     orderBy: { updatedAt: "desc" },
-    select: { id: true, title: true, pattern: true, isPublic: true, updatedAt: true },
+    select: { id: true, title: true, pattern: true, isPublic: true, updatedAt: true, isRemix: true, remixedFrom: originalSelect },
   });
-  return rows.map(({ pattern, ...row }) => ({ ...row, bpm: beatPatternSchema.shape.bpm.catch(82).parse((pattern as { bpm?: unknown })?.bpm) }));
+  return rows.map(({ pattern, remixedFrom, ...row }) => ({ ...row, remixedFrom: credit(remixedFrom, ownerId), bpm: beatPatternSchema.shape.bpm.catch(82).parse((pattern as { bpm?: unknown })?.bpm) }));
 }
 
 /** A beat the viewer may see (public, or their own). Throws BeatNotFoundError otherwise. */
@@ -237,4 +258,34 @@ export async function updateBeat(
 export async function deleteBeat(ownerId: string, beatId: string, db: PrismaClient = prisma): Promise<void> {
   await assertOwner(ownerId, beatId, db);
   await db.beat.delete({ where: { id: beatId } });
+}
+
+/** Copies a beat the user can see into a new private beat they own, crediting the original (PRD US-6). */
+export async function remixBeat(userId: string, beatId: string, db: PrismaClient = prisma): Promise<BeatDetail> {
+  const original = await db.beat.findUnique({
+    where: { id: beatId },
+    select: { id: true, title: true, pattern: true, isPublic: true, ownerId: true },
+  });
+  if (!original || (!original.isPublic && original.ownerId !== userId)) throw new BeatNotFoundError();
+
+  const row = await db.beat.create({
+    data: {
+      ownerId: userId,
+      title: remixTitle(original.title),
+      pattern: original.pattern ?? {},
+      isPublic: false,
+      isRemix: true,
+      remixedFromId: original.id,
+    },
+    select: detailSelect,
+  });
+  return toDetail(row, userId);
+}
+
+const REMIX_SUFFIX = " (remix)";
+const MAX_TITLE = 80;
+
+/** "{title} (remix)", shortening the original title so the result stays a valid title. */
+function remixTitle(title: string): string {
+  return `${title.slice(0, MAX_TITLE - REMIX_SUFFIX.length).trimEnd()}${REMIX_SUFFIX}`;
 }

@@ -157,9 +157,11 @@ describe("Editor playback", () => {
   });
 });
 
-/** Labels of the cells that are on. */
+/** Labels of the cells that are on (not other pressed buttons, such as a row's Mute). */
 function onCells() {
-  return screen.queryAllByRole("button", { pressed: true }).map((cell) => cell.getAttribute("aria-label"));
+  return screen
+    .queryAllByRole("button", { pressed: true, name: / step \d+$/ })
+    .map((cell) => cell.getAttribute("aria-label"));
 }
 
 const undoButton = () => screen.getByRole("button", { name: "Undo" });
@@ -291,6 +293,73 @@ describe("Editor undo and redo", () => {
 });
 
 const okJson = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
+
+describe("Editor row volume and mute (US-3)", () => {
+  /** The pattern the engine was last told about. */
+  const heard = () => vi.mocked(engine.update).mock.calls.at(-1)?.[0];
+  const mute = (name: string) => screen.getByRole("button", { name: `Mute ${name}` });
+  const volume = (name: string) => screen.getByRole("slider", { name: `${name} volume` });
+
+  function dragVolume(name: string, values: number[]) {
+    for (const value of values) fireEvent.input(volume(name), { target: { value: String(value) } });
+    fireEvent.change(volume(name));
+  }
+
+  it("mutes a row live while playing, and Undo unmutes it", async () => {
+    renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    await userEvent.click(mute("Kick"));
+    expect(mute("Kick")).toHaveAttribute("aria-pressed", "true");
+    expect(heard()?.tracks.kick.muted).toBe(true);
+    // Muting is a sound change, not a step change, and it doesn't stop the music.
+    expect(onCells()).toEqual(["Kick step 1"]);
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+
+    await userEvent.click(undoButton());
+    expect(mute("Kick")).toHaveAttribute("aria-pressed", "false");
+    expect(heard()?.tracks.kick.muted).toBe(false);
+    await userEvent.click(redoButton());
+    expect(mute("Kick")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("plays a row's new volume live, and makes a whole volume drag one undo step", async () => {
+    renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    dragVolume("Snare", [70, 58, 40]);
+    expect(volume("Snare")).toHaveValue("40");
+    expect(heard()?.tracks.snare.volume).toBe(40);
+
+    await userEvent.click(undoButton());
+    expect(volume("Snare")).toHaveValue("80");
+    expect(heard()?.tracks.snare.volume).toBe(80);
+    expect(undoButton()).toBeDisabled();
+  });
+
+  it("starts from a saved beat's volume and mute", () => {
+    const pattern = defaultPattern();
+    pattern.tracks.hihat.volume = 30;
+    pattern.tracks.bass.muted = true;
+    renderEditor({ beatId: "b1", initialTitle: "rainy window", initialPattern: pattern, signedIn: true });
+    expect(volume("Hi-hat")).toHaveValue("30");
+    expect(mute("Bass")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("saves the volume and mute with the beat", async () => {
+    fetchMock.mockReturnValue(okJson({ beat: { id: "b1" } }));
+    renderEditor({ beatId: "b1", initialTitle: "rainy window", signedIn: true });
+    dragVolume("Bass", [35]);
+    await userEvent.click(mute("Synth"));
+    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    const saved = JSON.parse(fetchMock.mock.calls[0][1].body).pattern;
+    expect(saved.tracks.bass).toMatchObject({ volume: 35, muted: false });
+    expect(saved.tracks.synth).toMatchObject({ volume: 80, muted: true });
+  });
+});
 
 describe("Editor title and saving", () => {
   it("shows the beat's name once, in the title field, with the tempo beside it", () => {
@@ -428,5 +497,27 @@ describe("Editor tempo", () => {
     expect(engine.update).toHaveBeenLastCalledWith(expect.objectContaining({ bpm: 120 }));
     expect(engine.start).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+});
+
+describe("Editor remix credit (US-6)", () => {
+  it("credits the original of a remix", () => {
+    renderEditor({
+      beatId: "r1",
+      signedIn: true,
+      isRemix: true,
+      remixedFrom: { id: "o1", title: "rainy window", creator: { displayName: "maya" } },
+    });
+    expect(screen.getByText(/Remixed from/)).toHaveTextContent("Remixed from rainy window by maya");
+  });
+
+  it("says when a remix's original is gone", () => {
+    renderEditor({ beatId: "r1", signedIn: true, isRemix: true, remixedFrom: null });
+    expect(screen.getByText("Remixed from a beat that is no longer available")).toBeInTheDocument();
+  });
+
+  it("shows no credit for a beat that isn't a remix", () => {
+    renderEditor({ beatId: "b1", signedIn: true });
+    expect(screen.queryByText(/Remixed from/)).not.toBeInTheDocument();
   });
 });

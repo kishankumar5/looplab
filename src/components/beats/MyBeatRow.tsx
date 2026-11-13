@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import type { RemixOriginal } from "@/lib/db/beats";
+import { RemixCredit } from "./RemixCredit";
 import { VisibilityToggle } from "./VisibilityToggle";
 
 export interface MyBeatRowProps {
@@ -11,6 +13,8 @@ export interface MyBeatRowProps {
   bpm: number;
   isPublic: boolean;
   editedAgo: string;
+  isRemix?: boolean;
+  remixedFrom?: RemixOriginal | null;
 }
 
 const button =
@@ -18,9 +22,17 @@ const button =
 
 /**
  * One row on My Beats (mockup My Beats screen): open, rename inline, delete with confirmation, and
- * make public or private.
+ * make public or private. Remixes credit their original.
  */
-export function MyBeatRow({ id, title, bpm, isPublic: savedIsPublic, editedAgo }: MyBeatRowProps) {
+export function MyBeatRow({
+  id,
+  title,
+  bpm,
+  isPublic: savedIsPublic,
+  editedAgo,
+  isRemix = false,
+  remixedFrom = null,
+}: MyBeatRowProps) {
   const router = useRouter();
   const [isPublic, setIsPublic] = useState(savedIsPublic);
   const [renaming, setRenaming] = useState(false);
@@ -97,6 +109,11 @@ export function MyBeatRow({ id, title, bpm, isPublic: savedIsPublic, editedAgo }
       <button type="button" onClick={remove} className={`${button} text-danger`}>
         Delete
       </button>
+      {isRemix && (
+        <div className="w-full">
+          <RemixCredit isRemix={isRemix} remixedFrom={remixedFrom} />
+        </div>
+      )}
       {error && (
         <p role="alert" className="w-full text-sm text-danger">
           {error}

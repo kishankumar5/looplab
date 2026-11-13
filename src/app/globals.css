@@ -17,6 +17,8 @@
   /* Text on accent-2, such as the toast (mockup .toast). */
   --color-on-accent-2: #10201c;
   --color-danger: #e07a7a;
+  /* Text on danger, such as a row's Mute button when on (mockup .mute[aria-pressed]). */
+  --color-on-danger: #2a1010;
 
   /*
    * One colour per grid row: the dot by the row name and the fill of its active pads.

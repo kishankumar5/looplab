@@ -2,12 +2,14 @@
 
 import { SaveBar } from "@/components/beats/SaveBar";
 import { ShareButton } from "@/components/beats/ShareButton";
+import { RemixCredit } from "@/components/beats/RemixCredit";
 import { VisibilityToggle } from "@/components/beats/VisibilityToggle";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSequencer } from "@/hooks/useSequencer";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
 import { useUndoShortcuts } from "@/hooks/useUndoShortcuts";
 import { useState } from "react";
+import type { RemixOriginal } from "@/lib/db/beats";
 import type { BeatPattern } from "@/lib/validation/beat";
 import { StepGrid } from "./StepGrid";
 import { Transport } from "./Transport";
@@ -24,6 +26,9 @@ export interface EditorProps {
   initialIsPublic?: boolean;
   /** Called once, when the first save creates the beat, before the address changes to /beats/{id}. */
   onCreated?: (id: string) => void;
+  /** For a remix: credit the original (or say it is gone). */
+  isRemix?: boolean;
+  remixedFrom?: RemixOriginal | null;
 }
 
 /**
@@ -34,6 +39,7 @@ export interface EditorProps {
  */
 export function Editor(props: EditorProps) {
   const { beatId, initialTitle, initialPattern, signedIn, initialIsPublic = false, onCreated } = props;
+  const { isRemix = false, remixedFrom = null } = props;
   const sequencer = useSequencer(initialPattern);
   const { pattern } = sequencer;
   const playback = usePlayback(pattern);
@@ -54,6 +60,7 @@ export function Editor(props: EditorProps) {
           <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{pattern.bpm} BPM</span>
           {savedId && <VisibilityToggle beatId={savedId} isPublic={isPublic} onChange={setIsPublic} />}
         </SaveBar>
+        <RemixCredit isRemix={isRemix} remixedFrom={remixedFrom} />
       </div>
       <Transport
         playing={playback.playing}
@@ -73,6 +80,9 @@ export function Editor(props: EditorProps) {
         pattern={pattern}
         playheadStep={playback.currentStep}
         onToggleStep={(track, step) => sequencer.edit({ type: "toggleStep", track, step })}
+        onVolumeChange={(track, volume) => sequencer.preview({ type: "setVolume", track, volume })}
+        onVolumeCommit={sequencer.commit}
+        onToggleMute={(track) => sequencer.edit({ type: "toggleMute", track })}
       />
     </>
   );

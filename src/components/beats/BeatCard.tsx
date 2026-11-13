@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { GalleryBeat } from "@/lib/db/beats";
 import { previewRows } from "@/lib/gallery/preview";
 import { LikeButton } from "./LikeButton";
+import { RemixButton } from "./RemixButton";
 
-/** Gallery card (mockup Gallery screen): mini pattern, title, creator, likes, Open. */
+/** Gallery card (mockup Gallery screen): mini pattern, title, creator, likes, Remix, Open. */
 export function BeatCard({ beat, signedIn }: { beat: GalleryBeat; signedIn: boolean }) {
   return (
     <article className="flex flex-col gap-2.5 rounded-[10px] bg-panel p-3.5">
@@ -16,10 +17,11 @@ export function BeatCard({ beat, signedIn }: { beat: GalleryBeat; signedIn: bool
       </div>
       <h2 className="font-bold">{beat.title}</h2>
       <p className="text-sm text-muted">by {beat.creator.displayName}</p>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* TODO(#6): preview play button once the audio engine exists. */}
         <LikeButton beatId={beat.id} initialLiked={beat.likedByMe} initialCount={beat.likeCount} signedIn={signedIn} />
         <span className="flex-1" />
+        <RemixButton beatId={beat.id} signedIn={signedIn} />
         <Link href={`/b/${beat.id}`} className="rounded-lg px-3 py-1.5 text-sm text-accent-2 hover:underline">
           Open
         </Link>

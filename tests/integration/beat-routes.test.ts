@@ -114,6 +114,20 @@ describe.skipIf(!url)("beat routes (US-4)", () => {
     expect((await read(owner)).status).toBe(200);
   });
 
+  it("keeps each row's volume and mute when a beat is saved and loaded (US-3)", async () => {
+    auth.userId = (await seedUser(db!)).id;
+    const pattern = defaultPattern();
+    pattern.tracks.snare.volume = 35;
+    pattern.tracks.kick.muted = true;
+    const { beat: created } = await (await beats.POST(json("POST", { pattern }))).json();
+    expect((await (await beat.GET(json("GET"), ctx(created.id))).json()).beat.pattern).toEqual(pattern);
+
+    pattern.tracks.kick.muted = false;
+    pattern.tracks.hihat.volume = 0;
+    await beat.PATCH(json("PATCH", { pattern }), ctx(created.id));
+    expect((await (await beat.GET(json("GET"), ctx(created.id))).json()).beat.pattern).toEqual(pattern);
+  });
+
   it("only the owner can change a beat's visibility", async () => {
     auth.userId = (await seedUser(db!)).id;
     const { beat: created } = await (await beats.POST(json("POST", { pattern: defaultPattern() }))).json();
