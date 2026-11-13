@@ -45,6 +45,24 @@ and apply the schema: `npm run db:migrate`. `npm test` applies migrations to the
 
 Setup, deployment, API docs, and architecture diagrams will be added during Sprint 1 and 2.
 
+## CI
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every pull request and every push to `main`:
+
+| Job | What it checks |
+|---|---|
+| Lint and typecheck | `npm run lint`, `npm run typecheck` |
+| Unit and integration tests | `npm run test:coverage` against a throwaway Postgres, with the 80% gate on `src/lib` |
+| Production build | `npm run build` |
+| E2E tests | Playwright against the production build |
+| Security: CodeQL | Static analysis of the JavaScript/TypeScript code; findings appear in the repo's **Security** tab |
+| Security: npm audit | `npm audit --audit-level=high`: fails on high or critical vulnerabilities in any dependency |
+| Security: dependency review | Pull requests only: fails if the PR adds a dependency with a high or critical vulnerability |
+
+The first four jobs run in that order; the security scans run in parallel with them, so they don't slow them down. Run the audit locally with `npm audit --audit-level=high`.
+
+[Dependabot](.github/dependabot.yml) opens weekly pull requests to update npm packages (minor and patch updates grouped into one PR) and the GitHub Actions the workflow uses. They go through the same CI and review as any other PR.
+
 ## Deployment
 
 LoopLab deploys to **Vercel** with a **Neon** Postgres database.
@@ -61,5 +79,5 @@ How it's wired:
 2. The Neon integration (Vercel > Storage > Neon) sets `DATABASE_URL` for Production and gives each Preview deployment its own database branch.
 3. `AUTH_SECRET` is set by hand in Vercel's environment variables, separately for Production and Preview.
 4. Vercel runs `npm run vercel-build` (`prisma migrate deploy && next build`), so every deploy applies pending migrations before building.
-5. GitHub Actions CI (lint, tests, build, E2E) runs on the same PRs, independent of Vercel.
+5. GitHub Actions CI (lint, tests, build, E2E, security scans; see [CI](#ci)) runs on the same PRs, independent of Vercel.
 
