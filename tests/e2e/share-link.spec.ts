@@ -62,7 +62,7 @@ test("share a beat by link: a signed-out friend can listen but not edit, until i
   await expect(cellsOn(friend, sharedGrid)).toHaveCount(PATTERN.length);
   await expect(friend.getByRole("textbox")).toHaveCount(0);
   await expect(friend.getByRole("button", { name: /^(Save|Clear|Undo|Make public)$/ })).toHaveCount(0);
-  await expect(friend.getByRole("link", { name: "Edit" })).toHaveCount(0);
+  await expect(friend.getByRole("link", { name: "Edit", exact: true })).toHaveCount(0);
 
   // The editor's address sends the friend to the listen-only page.
   await friend.goto(`${origin}/beats/${id}`);
@@ -86,7 +86,7 @@ test("share a beat by link: a signed-out friend can listen but not edit, until i
   // ...while the owner still sees it, with a way back to edit.
   await page.goto(link);
   await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", `/beats/${id}`);
+  await expect(page.getByRole("link", { name: "Edit", exact: true })).toHaveAttribute("href", `/beats/${id}`);
 
   await friendContext.close();
 });
