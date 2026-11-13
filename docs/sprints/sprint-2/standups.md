@@ -17,7 +17,7 @@ Format: **Done** / **Next** / **Blocked**. Morning and evening, each partner.
 - **Kishan:**
 
 ### Thu Nov 12, evening
-- **Nicholas:**
+- **Nicholas:** **Done:** Re-planned for the Sun Nov 15 deadline: feature freeze moved to Sat noon, with Sat and Sun for the README, demo video, retro, and reflections. Proposed a demo video split (Kishan: editor; Nicholas: accounts, save, gallery, remix, share, API docs). Checked that #32 and #33 still merge cleanly into main after the stack landed. **Next:** review Kishan's PRs in his order (#34, #35, #36, #38, #40, #41, then #37 and #39), then fix the conflict between #32 and his My Beats changes. **Blocked:** nothing.
 - **Kishan:**
 
 ### Fri Nov 13
