@@ -12,13 +12,14 @@ test("change muffle and crackle while playing, undo, then save and reload", asyn
   await page.getByRole("group", { name: "Step grid" }).getByRole("button", { name: "Kick step 1", exact: true }).click();
   await page.getByRole("button", { name: "Play" }).click();
   await muffle.fill("85");
-  await crackle.fill("0");
+  await crackle.fill("60");
   await expect(muffle).toHaveValue("85");
+  await expect(crackle).toHaveValue("60");
   await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
 
-  // The crackle change is one undo step.
+  // The crackle change is one undo step (new beats start with effects off).
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(crackle).not.toHaveValue("0");
+  await expect(crackle).toHaveValue("0");
   await expect(muffle).toHaveValue("85");
   await crackle.fill("40");
   await page.getByRole("button", { name: "Stop" }).click();

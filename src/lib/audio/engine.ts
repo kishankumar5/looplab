@@ -1,6 +1,7 @@
 import type * as Tone from "tone";
 import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
 import { compressorMakeupDb, trackGain } from "./mix";
+import { createEffects, type LofiEffects } from "./effects";
 import { createVoices, type Voices } from "./voices";
 
 /** Called with the 0-based step being heard, in time with the sound, while the loop plays. */
@@ -12,6 +13,8 @@ interface Rig {
   voices: Voices;
   /** One per row, between its instrument and the master: where volume and mute apply (PRD US-3). */
   channels: Record<TrackId, Tone.Gain>;
+  /** Muffle and vinyl crackle, between the row channels and the master (PRD US-3, #7). */
+  effects: LofiEffects;
 }
 
 /**
@@ -60,6 +63,8 @@ export async function start(next: BeatPattern, onStep: StepListener): Promise<vo
     if (id !== session) return;
     const { tone } = loaded;
     setLevels(loaded, pattern);
+    loaded.effects.set(pattern.effects);
+    loaded.effects.start();
     nextStep = 0;
     tone.getTransport().bpm.value = pattern.bpm;
     tone.getTransport().start();
@@ -71,7 +76,7 @@ export async function start(next: BeatPattern, onStep: StepListener): Promise<vo
 }
 
 /**
- * Hands the engine the latest pattern: tempo, volume, and mute change at once, and steps from the
+ * Hands the engine the latest pattern: tempo, volume, mute, and effects change at once, and steps from the
  * next pass, all without restarting the loop.
  */
 export function update(next: BeatPattern): void {
@@ -79,6 +84,7 @@ export function update(next: BeatPattern): void {
   if (!rig) return;
   rig.tone.getTransport().bpm.value = next.bpm;
   setLevels(rig, next);
+  rig.effects.set(next.effects);
 }
 
 /** Each row's channel follows its volume and mute; a muted row is silent, ringing notes included. */
@@ -92,6 +98,7 @@ export function stop(): void {
   playing = false;
   if (!rig) return;
   rig.tone.getTransport().stop();
+  rig.effects.stop();
   rig.tone.getDraw().cancel(0);
 }
 
@@ -107,18 +114,18 @@ async function loadRig(): Promise<Rig> {
 }
 
 function buildRig(tone: typeof Tone): Rig {
-  // Row channels -> master -> limiter -> make-up trim -> speakers.
-  // TODO(#7): muffle and vinyl crackle go between the row channels and the master.
+  // Row channels -> lo-fi effects (muffle, plus the crackle bed) -> master -> limiter -> make-up trim -> speakers.
   const output = new tone.Gain(LIMITER_TRIM).toDestination();
   const limiter = new tone.Compressor(LIMITER).connect(output);
   const master = new tone.Volume(MASTER_DB).connect(limiter);
+  const effects = createEffects(tone, master, pattern.effects);
   const channels = Object.fromEntries(
-    TRACK_IDS.map((track) => [track, new tone.Gain(trackGain(pattern.tracks[track])).connect(master)]),
+    TRACK_IDS.map((track) => [track, new tone.Gain(trackGain(pattern.tracks[track])).connect(effects.input)]),
   ) as Record<TrackId, Tone.Gain>;
   const transport = tone.getTransport();
   transport.cancel(0); // drop a schedule left behind by a hot-reloaded copy of this module
   transport.scheduleRepeat(tick, "16n");
-  return { tone, voices: createVoices(tone, channels), channels };
+  return { tone, voices: createVoices(tone, channels), channels, effects };
 }
 
 /**

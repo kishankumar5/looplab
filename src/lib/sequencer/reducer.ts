@@ -3,6 +3,9 @@ import { MAX_BPM, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type Trac
 /** A row's volume range (PRD US-3; the beat schema stores 0 to 100). */
 const MIN_VOLUME = 0;
 const MAX_VOLUME = 100;
+/** The lo-fi effects' range (PRD US-3; the beat schema stores 0 to 100). */
+const MIN_EFFECT = 0;
+const MAX_EFFECT = 100;
 
 /** Every edit the editor can make to a beat. `step` is 0-based. */
 export type SequencerAction =
@@ -47,8 +50,14 @@ function setVolume(state: BeatPattern, track: TrackId, volume: number): BeatPatt
   return next === state.tracks[track].volume ? state : withTrack(state, track, { volume: next });
 }
 
-function setEffect(_state: BeatPattern, _effect: EffectId, _value: number): BeatPattern {
-  throw new Error("not implemented");
+/**
+ * Muffle or crackle as a whole number from 0 to 100, like a saved beat stores. Returns `state`
+ * itself for a no-op, so undo/redo history doesn't fill with empty changes.
+ */
+function setEffect(state: BeatPattern, effect: EffectId, value: number): BeatPattern {
+  if (!Number.isFinite(value)) return state;
+  const next = Math.min(MAX_EFFECT, Math.max(MIN_EFFECT, Math.round(value)));
+  return next === state.effects[effect] ? state : { ...state, effects: { ...state.effects, [effect]: next } };
 }
 
 /** Mutes an unmuted row, or unmutes a muted one; its volume and steps stay as they are. */
