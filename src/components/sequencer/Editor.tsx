@@ -1,26 +1,45 @@
 "use client";
 
+import { SaveBar } from "@/components/beats/SaveBar";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSequencer } from "@/hooks/useSequencer";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
 import { useUndoShortcuts } from "@/hooks/useUndoShortcuts";
+import type { BeatPattern } from "@/lib/validation/beat";
 import { StepGrid } from "./StepGrid";
-import { TitleBar } from "./TitleBar";
 import { Transport } from "./Transport";
+
+export interface EditorProps {
+  /** The saved beat's id, or null for a new beat (SaveBar keeps the id once the first save creates it). */
+  beatId: string | null;
+  /** The saved title, else the draft's, else "" (the field then shows "Untitled beat"). */
+  initialTitle: string;
+  /** The beat to start from: the first state of a fresh undo history. Default: an empty beat. */
+  initialPattern?: BeatPattern;
+  signedIn: boolean;
+  /** Called once, when the first save creates the beat, before the address changes to /beats/{id}. */
+  onCreated?: (id: string) => void;
+}
 
 /**
  * The beat editor (mockup Editor screen). Every edit goes through useSequencer, which keeps the
- * undo/redo history; usePlayback makes the audio follow the result.
+ * undo/redo history; usePlayback makes the audio follow the result. Saving (SaveBar) reads the
+ * pattern but never changes it, so it adds nothing to the history.
  */
-export function Editor() {
-  const sequencer = useSequencer();
+export function Editor({ beatId, initialTitle, initialPattern, signedIn, onCreated }: EditorProps) {
+  const sequencer = useSequencer(initialPattern);
   const { pattern } = sequencer;
   const playback = usePlayback(pattern);
   useSpaceShortcut(playback.toggle);
   useUndoShortcuts(sequencer.undo, sequencer.redo);
   return (
     <>
-      <TitleBar title="Untitled beat" bpm={pattern.bpm} />
+      {/* The title bar: the beat's name (editable), its tempo, and Save. */}
+      <div className="mb-3.5">
+        <SaveBar beatId={beatId} initialTitle={initialTitle} pattern={pattern} signedIn={signedIn} onCreated={onCreated}>
+          <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{pattern.bpm} BPM</span>
+        </SaveBar>
+      </div>
       <Transport
         playing={playback.playing}
         onTogglePlay={playback.toggle}
