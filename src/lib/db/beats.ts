@@ -228,6 +228,20 @@ export async function getBeat(viewerId: string | null, beatId: string, db: Prism
   return toDetail(row, viewerId);
 }
 
+/** Like getBeat, but null instead of BeatNotFoundError: for pages that show the 404 page then. */
+export async function findBeat(
+  viewerId: string | null,
+  beatId: string,
+  db: PrismaClient = prisma,
+): Promise<BeatDetail | null> {
+  try {
+    return await getBeat(viewerId, beatId, db);
+  } catch (error) {
+    if (error instanceof BeatNotFoundError) return null;
+    throw error;
+  }
+}
+
 /** Updates the owner's beat. Throws BeatNotFoundError for anyone else. */
 export async function updateBeat(
   ownerId: string,

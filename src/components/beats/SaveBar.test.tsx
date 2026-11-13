@@ -12,6 +12,7 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   localStorage.clear();
+  window.history.replaceState(null, "", "/");
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -23,7 +24,7 @@ afterEach(() => {
 const okJson = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
 
 describe("SaveBar", () => {
-  it("saves a new beat and moves to its URL", async () => {
+  it("saves a new beat and changes the address to its URL, without a navigation", async () => {
     fetchMock.mockReturnValue(okJson({ beat: { id: "b1", title: "rainy window" } }, 201));
     render(<SaveBar beatId={null} initialTitle="" pattern={defaultPattern()} signedIn />);
 
@@ -32,7 +33,45 @@ describe("SaveBar", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/beats", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ title: "rainy window", pattern: defaultPattern() });
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/beats/b1"));
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved");
+    expect(window.location.pathname).toBe("/beats/b1");
+    // A router navigation would swap in the /beats/[id] page and remount the editor.
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("saves into the same beat after the first save", async () => {
+    fetchMock.mockReturnValueOnce(okJson({ beat: { id: "b1" } }, 201)).mockReturnValueOnce(okJson({ beat: { id: "b1" } }));
+    // The editor keeps passing beatId={null}: it isn't remounted after the first save.
+    const { rerender } = render(<SaveBar beatId={null} initialTitle="" pattern={defaultPattern()} signedIn />);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved");
+
+    const changed = defaultPattern();
+    changed.tracks.kick.steps[0] = true;
+    rerender(<SaveBar beatId={null} initialTitle="" pattern={changed} signedIn />);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/beats/b1", expect.objectContaining({ method: "PATCH" }));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).pattern.tracks.kick.steps[0]).toBe(true);
+    expect(window.location.pathname).toBe("/beats/b1");
+  });
+
+  it("tells the editor once, before the address changes, when the first save creates the beat", async () => {
+    fetchMock.mockReturnValueOnce(okJson({ beat: { id: "b1" } }, 201)).mockReturnValueOnce(okJson({ beat: { id: "b1" } }));
+    const addressWhenCalled: string[] = [];
+    const onCreated = vi.fn(() => addressWhenCalled.push(window.location.pathname));
+    render(<SaveBar beatId={null} initialTitle="" pattern={defaultPattern()} signedIn onCreated={onCreated} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith("b1"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    // So the editor knows /beats/b1 is its own beat by the time the address shows it.
+    expect(addressWhenCalled).toEqual(["/"]);
   });
 
   it("uses the default title when the field is empty", async () => {
@@ -49,6 +88,7 @@ describe("SaveBar", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/beats/b1", expect.objectContaining({ method: "PATCH" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Saved");
     expect(router.replace).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/");
   });
 
   it("keeps the beat and sends a signed-out user to sign in", async () => {
