@@ -16,10 +16,30 @@
   --color-accent-2: #8fc1b5;
   --color-danger: #e07a7a;
 
+  /*
+   * One colour per grid row: the dot by the row name and the fill of its active pads.
+   * Kick keeps the mockup's accent; the others come from the same warm, dusky palette
+   * (none of them is accent-2, which is kept for the playhead).
+   */
+  --color-kick: var(--color-accent);
+  --color-snare: #ee8fa3;
+  --color-hihat: #f0d38a;
+  --color-bass: #a99cf0;
+  --color-synth: #84b9ec;
+
   --font-sans: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  /* Soft glow on active grid cells. */
-  --shadow-glow: 0 0 10px #f2a65a55;
+  /* Empty pads: a faint top highlight and a darker bottom edge, so they read as pressable. */
+  --shadow-pad:
+    inset 0 1px 0 color-mix(in oklab, var(--color-text) 7%, transparent),
+    inset 0 -3px 0 color-mix(in oklab, var(--color-bg) 50%, transparent);
+
+  /* Active pads: a soft glow in the row's colour, lit from above. */
+  --shadow-glow-kick: 0 0 12px color-mix(in oklab, var(--color-kick) 50%, transparent), inset 0 1px 0 color-mix(in oklab, var(--color-text) 45%, transparent);
+  --shadow-glow-snare: 0 0 12px color-mix(in oklab, var(--color-snare) 50%, transparent), inset 0 1px 0 color-mix(in oklab, var(--color-text) 45%, transparent);
+  --shadow-glow-hihat: 0 0 12px color-mix(in oklab, var(--color-hihat) 50%, transparent), inset 0 1px 0 color-mix(in oklab, var(--color-text) 45%, transparent);
+  --shadow-glow-bass: 0 0 12px color-mix(in oklab, var(--color-bass) 50%, transparent), inset 0 1px 0 color-mix(in oklab, var(--color-text) 45%, transparent);
+  --shadow-glow-synth: 0 0 12px color-mix(in oklab, var(--color-synth) 50%, transparent), inset 0 1px 0 color-mix(in oklab, var(--color-text) 45%, transparent);
 }
 
 body {

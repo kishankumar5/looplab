@@ -72,4 +72,41 @@ describe("sequencerReducer", () => {
       expect(state).toEqual(busyPattern());
     });
   });
+
+  describe("setTempo", () => {
+    it("sets the tempo and changes nothing else", () => {
+      const next = sequencerReducer(busyPattern(), { type: "setTempo", bpm: 120 });
+      expect(next).toEqual({ ...busyPattern(), bpm: 120 });
+    });
+
+    it("accepts both ends of the 60 to 140 BPM range", () => {
+      expect(sequencerReducer(busyPattern(), { type: "setTempo", bpm: 60 }).bpm).toBe(60);
+      expect(sequencerReducer(busyPattern(), { type: "setTempo", bpm: 140 }).bpm).toBe(140);
+    });
+
+    it("keeps the tempo inside 60 to 140 BPM", () => {
+      expect(sequencerReducer(busyPattern(), { type: "setTempo", bpm: 59 }).bpm).toBe(60);
+      expect(sequencerReducer(busyPattern(), { type: "setTempo", bpm: 300 }).bpm).toBe(140);
+    });
+
+    it("rounds to a whole BPM, which is what a saved beat stores", () => {
+      expect(sequencerReducer(busyPattern(), { type: "setTempo", bpm: 90.6 }).bpm).toBe(91);
+    });
+
+    it("ignores a tempo that is not a number", () => {
+      const state = busyPattern();
+      expect(sequencerReducer(state, { type: "setTempo", bpm: Number.NaN })).toBe(state);
+    });
+
+    it("returns the same state when the tempo does not change, so history gets no empty entries", () => {
+      const state = busyPattern();
+      expect(sequencerReducer(state, { type: "setTempo", bpm: 96 })).toBe(state);
+    });
+
+    it("does not mutate the previous state", () => {
+      const state = busyPattern();
+      sequencerReducer(state, { type: "setTempo", bpm: 70 });
+      expect(state).toEqual(busyPattern());
+    });
+  });
 });
