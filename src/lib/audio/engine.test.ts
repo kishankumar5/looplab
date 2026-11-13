@@ -11,6 +11,9 @@ const fake = vi.hoisted(() => ({
   pendingDraws: [] as Array<() => void>,
   unlockAudio: vi.fn(),
   createVoices: vi.fn(),
+  /** The lo-fi effects (#7): the rows go into its input; set/start/stop are recorded. */
+  createEffects: vi.fn(),
+  effects: { input: { outputs: [] as unknown[] }, set: vi.fn(), start: vi.fn(), stop: vi.fn() },
   voices: { kick: vi.fn(), snare: vi.fn(), hihat: vi.fn(), bass: vi.fn(), synth: vi.fn() },
   /** The level (dB) the engine gave the master Volume. */
   masterDb: undefined as number | undefined,
@@ -76,6 +79,7 @@ vi.mock("tone", () => ({
   },
 }));
 vi.mock("./voices", () => ({ createVoices: fake.createVoices }));
+vi.mock("./effects", () => ({ createEffects: fake.createEffects }));
 
 let engine: typeof import("./engine");
 
@@ -89,6 +93,7 @@ beforeEach(async () => {
   fake.toSpeakers.length = 0;
   fake.unlockAudio.mockResolvedValue(undefined);
   fake.createVoices.mockReturnValue(fake.voices);
+  fake.createEffects.mockReturnValue(fake.effects);
   fake.draw.schedule.mockImplementation((callback: () => void) => fake.pendingDraws.push(callback));
   fake.draw.cancel.mockImplementation(() => (fake.pendingDraws.length = 0));
   // The engine is one long-lived instance per page, so each test loads a fresh copy.
@@ -324,5 +329,34 @@ describe("audio engine", () => {
 
     await engine.start(pattern(), ignoreSteps);
     expect(fake.transport.start).toHaveBeenCalledOnce();
+  });
+});
+
+describe("audio engine lo-fi effects (#7)", () => {
+  it("sends every row through the effects, and the effects into the master", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    for (const track of TRACK_IDS) expect(channel(track)?.outputs).toEqual([fake.effects.input]);
+    expect(fake.createEffects).toHaveBeenCalledOnce();
+    expect(fake.createEffects.mock.calls[0][1]).toBe(fake.master);
+  });
+
+  it("starts the effects with the beat's values when the loop starts", async () => {
+    const beat = pattern((p) => (p.effects = { muffle: 65, crackle: 10 }));
+    await engine.start(beat, ignoreSteps);
+    expect(fake.effects.set).toHaveBeenLastCalledWith({ muffle: 65, crackle: 10 });
+    expect(fake.effects.start).toHaveBeenCalledOnce();
+  });
+
+  it("changes muffle and crackle live while playing", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    engine.update(pattern((p) => (p.effects = { muffle: 90, crackle: 70 })));
+    expect(fake.effects.set).toHaveBeenLastCalledWith({ muffle: 90, crackle: 70 });
+    expect(fake.transport.start).toHaveBeenCalledOnce();
+  });
+
+  it("stops the crackle when the loop stops", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    engine.stop();
+    expect(fake.effects.stop).toHaveBeenCalledOnce();
   });
 });

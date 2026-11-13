@@ -23,3 +23,55 @@ export function compressorMakeupDb(threshold: number, ratio: number): number {
   const fullRangeDb = threshold * (1 - 1 / ratio);
   return -0.6 * fullRangeDb;
 }
+
+/** Muffle 0 leaves the sound untouched (the top of human hearing); 100 is "through a wall". */
+const OPEN_CUTOFF_HZ = 20_000;
+const MUFFLED_CUTOFF_HZ = 400;
+
+const clamp100 = (value: number) => Math.min(100, Math.max(0, value));
+
+/**
+ * The muffle filter's cutoff (Hz) for a muffle value 0 to 100 (PRD US-3). Exponential, so even
+ * steps on the slider are even steps in pitch: 50 sits at the geometric middle (about 2.8 kHz).
+ */
+export function muffleCutoffHz(muffle: number): number {
+  const amount = clamp100(muffle) / 100;
+  if (amount === 0) return OPEN_CUTOFF_HZ;
+  if (amount === 1) return MUFFLED_CUTOFF_HZ;
+  return OPEN_CUTOFF_HZ * (MUFFLED_CUTOFF_HZ / OPEN_CUTOFF_HZ) ** amount;
+}
+
+/** The crackle's level at 100: a bed under the beat, never on top of it. */
+const MAX_CRACKLE_GAIN = 0.35;
+
+/**
+ * The crackle's level as a linear gain, for a crackle value 0 to 100 (PRD US-3). Squared, like the
+ * row volumes, so the slider's lower half stays subtle.
+ */
+export function crackleGain(crackle: number): number {
+  const amount = clamp100(crackle) / 100;
+  return MAX_CRACKLE_GAIN * amount * amount;
+}
+
+/** How loud the constant surface hiss is, and how often (per sample) a pop starts. */
+const HISS = 0.012;
+const POP_CHANCE = 0.0004;
+/** Each pop dies away over a few dozen samples (under a millisecond): a click, not a thump. */
+const POP_DECAY = 0.72;
+
+/**
+ * A vinyl-crackle sample (PRD US-3): faint hiss with occasional pops of random size and sign.
+ * Generated in code because LoopLab ships no audio files. `random` is Math.random in the app and
+ * a seeded generator in tests.
+ */
+export function crackleSamples(length: number, random: () => number): Float32Array {
+  const samples = new Float32Array(length);
+  let pop = 0;
+  for (let i = 0; i < length; i++) {
+    if (random() < POP_CHANCE) pop = (random() < 0.5 ? -1 : 1) * (0.3 + 0.6 * random());
+    const hiss = HISS * (random() * 2 - 1);
+    samples[i] = Math.min(1, Math.max(-1, hiss + pop));
+    pop *= POP_DECAY;
+  }
+  return samples;
+}

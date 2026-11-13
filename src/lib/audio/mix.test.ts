@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compressorMakeupDb, trackGain } from "./mix";
+import { compressorMakeupDb, crackleGain, crackleSamples, muffleCutoffHz, trackGain } from "./mix";
 
 describe("trackGain", () => {
   it("plays a row at full volume at the instrument's own level", () => {
@@ -36,5 +36,53 @@ describe("compressorMakeupDb", () => {
 
   it("adds nothing when the threshold is at full scale", () => {
     expect(compressorMakeupDb(0, 20)).toBeCloseTo(0, 10);
+  });
+});
+
+describe("muffleCutoffHz (#7)", () => {
+  it("is wide open at 0 and very muffled at 100", () => {
+    expect(muffleCutoffHz(0)).toBe(20_000);
+    expect(muffleCutoffHz(100)).toBe(400);
+  });
+
+  it("gets steadily darker as muffle goes up, clamped to 0..100", () => {
+    const cutoffs = [0, 25, 50, 75, 100].map(muffleCutoffHz);
+    for (let i = 1; i < cutoffs.length; i++) expect(cutoffs[i]).toBeLessThan(cutoffs[i - 1]);
+    // Even steps in muffle are even steps in pitch (octaves), so the middle is the geometric mean.
+    expect(muffleCutoffHz(50)).toBeCloseTo(Math.sqrt(20_000 * 400), 6);
+    expect(muffleCutoffHz(-10)).toBe(20_000);
+    expect(muffleCutoffHz(140)).toBe(400);
+  });
+});
+
+describe("crackleGain (#7)", () => {
+  it("is silent at 0 and gets louder up to its maximum at 100", () => {
+    expect(crackleGain(0)).toBe(0);
+    const gains = [0, 20, 50, 80, 100].map(crackleGain);
+    for (let i = 1; i < gains.length; i++) expect(gains[i]).toBeGreaterThan(gains[i - 1]);
+    expect(crackleGain(100)).toBeLessThanOrEqual(0.5);
+    expect(crackleGain(130)).toBe(crackleGain(100));
+  });
+});
+
+describe("crackleSamples (#7)", () => {
+  /** A repeatable stand-in for Math.random. */
+  function seeded(seed: number) {
+    return () => ((seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648) / 2_147_483_648);
+  }
+
+  it("makes the requested number of samples, all within -1..1", () => {
+    const samples = crackleSamples(44_100, seeded(1));
+    expect(samples).toHaveLength(44_100);
+    for (const sample of samples) expect(Math.abs(sample)).toBeLessThanOrEqual(1);
+  });
+
+  it("is a quiet hiss with occasional loud pops", () => {
+    const samples = crackleSamples(44_100, seeded(7));
+    const loud = samples.filter((sample) => Math.abs(sample) > 0.2).length;
+    const quiet = samples.filter((sample) => Math.abs(sample) < 0.05).length;
+    expect(loud).toBeGreaterThan(0);
+    expect(loud / samples.length).toBeLessThan(0.02);
+    expect(quiet / samples.length).toBeGreaterThan(0.9);
   });
 });
