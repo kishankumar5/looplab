@@ -1,0 +1,23 @@
+# Dependabot (issue #16): weekly pull requests that update npm packages and the GitHub Actions
+# used in .github/workflows. They go through the same CI and partner review as any other PR.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # One PR for all minor and patch updates; major updates still get a PR each.
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
