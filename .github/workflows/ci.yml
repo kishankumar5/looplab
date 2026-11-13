@@ -30,7 +30,7 @@ jobs:
     name: Lint and typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -61,7 +61,7 @@ jobs:
     env:
       DATABASE_URL_TEST: postgresql://looplab:looplab@localhost:5432/looplab_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -85,7 +85,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -124,7 +124,7 @@ jobs:
       # Throwaway value for CI only; real secrets live in Vercel's environment settings.
       AUTH_SECRET: ci-only-not-a-real-secret-0123456789abcdef
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -153,7 +153,7 @@ jobs:
       contents: read
       security-events: write # upload results to the repository's Security tab
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
@@ -170,7 +170,7 @@ jobs:
     name: "Security: npm audit"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -182,7 +182,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Same bar as npm audit: fail when a PR adds a dependency with a high or critical vulnerability.
       - uses: actions/dependency-review-action@v5
         with:
