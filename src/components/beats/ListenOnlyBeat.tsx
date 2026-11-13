@@ -32,6 +32,7 @@ export function ListenOnlyBeat({ id, title, creator, pattern, isOwner, isPublic 
         <h1 className="min-w-0 flex-1 text-[22px] font-bold">{title}</h1>
         <p className="text-sm text-muted">
           by <b className="text-text">{creator}</b> · {pattern.bpm} BPM
+          {pattern.swing > 0 && ` · swing ${pattern.swing}%`}
         </p>
       </div>
       {isOwner && !isPublic && (

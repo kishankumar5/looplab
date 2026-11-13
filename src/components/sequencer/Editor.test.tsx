@@ -499,3 +499,19 @@ describe("Editor tempo", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 });
+
+describe("Editor swing (#10)", () => {
+  it("starts at the beat's swing, and a swing change is one undo step", async () => {
+    const initialPattern = defaultPattern();
+    initialPattern.swing = 20;
+    renderEditor({ initialPattern });
+    const swing = screen.getByRole("slider", { name: "Swing" });
+    expect(swing).toHaveValue("20");
+    expect(swing).toHaveAttribute("max", "60");
+    fireEvent.change(swing, { target: { value: "45" } });
+    expect(swing).toHaveValue("45");
+    expect(screen.getByText("45%")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(swing).toHaveValue("20");
+  });
+});

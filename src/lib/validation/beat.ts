@@ -10,6 +10,9 @@ export const MIN_BPM = 60;
 export const MAX_BPM = 140;
 export const DEFAULT_BPM = 82;
 
+/** Swing tops out at 60% (PRD US-3): past that the off-beat 16ths start to land on the next beat. */
+export const MAX_SWING = 60;
+
 const percent = z.number().int().min(0).max(100);
 
 const trackSchema = z.object({
@@ -25,7 +28,7 @@ const trackSchema = z.object({
 export const beatPatternSchema = z.object({
   version: z.literal(1),
   bpm: z.number().int().min(MIN_BPM).max(MAX_BPM),
-  swing: z.number().int().min(0).max(60),
+  swing: z.number().int().min(0).max(MAX_SWING),
   tracks: z.object({
     kick: trackSchema,
     snare: trackSchema,

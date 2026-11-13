@@ -174,3 +174,26 @@ describe("sequencerReducer", () => {
     });
   });
 });
+
+describe("setSwing (#10)", () => {
+  it("sets swing and leaves everything else alone", () => {
+    const start = defaultPattern();
+    const swung = sequencerReducer(start, { type: "setSwing", swing: 30 });
+    expect(swung.swing).toBe(30);
+    expect(swung.tracks).toBe(start.tracks);
+    expect(swung.bpm).toBe(start.bpm);
+  });
+
+  it("clamps to 0..60 and rounds", () => {
+    const start = defaultPattern();
+    expect(sequencerReducer(start, { type: "setSwing", swing: 75 }).swing).toBe(60);
+    expect(sequencerReducer(start, { type: "setSwing", swing: -1 }).swing).toBe(0);
+    expect(sequencerReducer(start, { type: "setSwing", swing: 12.5 }).swing).toBe(13);
+  });
+
+  it("returns the same state for no change or a non-number", () => {
+    const start = defaultPattern();
+    expect(sequencerReducer(start, { type: "setSwing", swing: 0 })).toBe(start);
+    expect(sequencerReducer(start, { type: "setSwing", swing: Number.NaN })).toBe(start);
+  });
+});

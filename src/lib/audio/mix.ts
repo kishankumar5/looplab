@@ -1,4 +1,4 @@
-import type { Track } from "@/lib/validation/beat";
+import { MAX_SWING, type Track } from "@/lib/validation/beat";
 
 /**
  * A row's level on its channel, as a linear gain from 0 (silent) to 1 (the instrument's own
@@ -22,4 +22,16 @@ export function compressorMakeupDb(threshold: number, ratio: number): number {
   // fullRangeGain is where a 0 dBFS input comes out. With a hard knee, that's threshold * (1 - 1/ratio).
   const fullRangeDb = threshold * (1 - 1 / ratio);
   return -0.6 * fullRangeDb;
+}
+
+/**
+ * How late (seconds) step `step` (0-based) plays for a swing of 0 to 60% at `bpm` (PRD US-3).
+ * Only every second 16th moves (steps 2, 4, ... counting from 1), by `swing`% of a 16th note:
+ * at 50%, half a 16th. Pure, so it's tested without Tone.
+ */
+export function swingDelaySeconds(step: number, swing: number, bpm: number): number {
+  if (step % 2 === 0) return 0;
+  const amount = Math.min(MAX_SWING, Math.max(0, swing)) / 100;
+  const sixteenthSeconds = 60 / bpm / 4;
+  return amount * sixteenthSeconds;
 }
