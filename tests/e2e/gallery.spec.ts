@@ -40,3 +40,16 @@ test("switch between newest and most liked", async ({ page }) => {
   await expect(page).toHaveURL(/sort=likes/);
   await expect(page.getByRole("link", { name: "Most liked" })).toHaveAttribute("aria-current", "page");
 });
+
+// US-6: each card can preview its beat in place, one at a time.
+test("preview a beat from its gallery card", async ({ page }) => {
+  const suffix = uniqueSuffix();
+  await seedCreatorWithBeats(suffix);
+  await page.goto("/gallery");
+  const card = page.getByRole("article").filter({ hasText: `public ${suffix}` });
+
+  await card.getByRole("button", { name: `Play public ${suffix}` }).click();
+  await expect(card.getByRole("button", { name: `Stop public ${suffix}` })).toBeVisible();
+  await card.getByRole("button", { name: `Stop public ${suffix}` }).click();
+  await expect(card.getByRole("button", { name: `Play public ${suffix}` })).toBeVisible();
+});
