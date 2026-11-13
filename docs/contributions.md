@@ -9,8 +9,8 @@ _Last updated: Fri Nov 13, 2026. PRs still in review are marked._
 
 | | Kishan Kumar Selvakumar Anandraj | Nicholas Kaplun |
 |---|---|---|
-| **Issues delivered** | #5, #6, #8 (editor half), #9, #11, #12, #16 | #1, #2, #3, #4, #7, #8 (API + My Beats half), #13, #14, #15, #17 (diagrams, README) |
-| **PRs authored** | 8 (#34 to #41) | 16 (#20 to #33, #51, #52) |
+| **Issues delivered** | #5, #6, #8 (editor half), #9, #11, #12, #16 | #1, #2, #3, #4, #7, #8 (API + My Beats half), #10, #13, #14, #15, #17 (diagrams, README) |
+| **PRs authored** | 8 (#34 to #41) | 18 (#20 to #33, #51 to #54) |
 | **PRs reviewed and approved** | 11 (#20 to #22, #24 to #31) | 8 (#34 to #41) |
 | **Infrastructure** | Vercel project, Neon database with per-PR preview branches, production `AUTH_SECRET`, security scanning, Dependabot | Test tooling and 4-stage CI, Prisma schema and migrations, Auth.js, OpenAPI spec and `/api-docs` |
 
@@ -27,19 +27,19 @@ _Last updated: Fri Nov 13, 2026. PRs still in review are marked._
 | #7 | Muffle and vinyl crackle | Nicholas | #51 (in review) | Kishan |
 | #8 | Save, rename, delete; My Beats; save from the editor | Nicholas (API, My Beats), Kishan (editor + `/beats/{id}`) | #30, #38 | Kishan, Nicholas |
 | #9 | Public/private toggle and listen-only share page | Kishan | #40 | Nicholas |
+| #10 | Swing | Nicholas | #54 (in review) | Kishan |
 | #11 | Per-row volume and mute, with a limiter | Kishan | #41 | Nicholas |
 | #12 | Undo and redo | Kishan | #36 | Nicholas |
 | #13 | Gallery, likes, and preview play on cards | Nicholas | #27, #52 (in review) | Kishan |
 | #14 | Remix with credit to the original | Nicholas | #32 (in review) | Kishan |
 | #15 | OpenAPI spec and Swagger docs | Nicholas | #28 | Kishan |
 | #16 | Security scanning in CI (CodeQL, npm audit, dependency review) | Kishan | #37 | Nicholas |
-| #17 | Architecture and database diagrams, README, sprint docs | Nicholas (diagrams, README, sprint templates), Kishan (sprint 2 plan) | #29, #23, #39 | Kishan, Nicholas |
+| #17 | Architecture and database diagrams, README, sprint docs, this log | Nicholas (diagrams, README, sprint templates, this log), Kishan (sprint 2 plan) | #23, #29, #39, #53 (in review) | Kishan, Nicholas |
 
 ## Not built
 
 | Issue | Feature | Why |
 |---|---|---|
-| #10 | Swing | Moved to Backlog at the Sprint 2 re-plan to protect the core features |
 | #18 | Live jam rooms | Stretch goal, out of scope from the start (real-time sync was the riskiest part) |
 | #19 | WAV export | Stretch goal |
 

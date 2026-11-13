@@ -13,7 +13,7 @@ CS6983 AI Coding, Fall 2026, Project 2. Team: Kishan Kumar Selvakumar Anandraj a
 | Feature | User story | What you can do |
 |---|---|---|
 | **Step grid** | US-2 | 5 rows (kick, snare, hi-hat, bass, synth) by 16 steps, grouped in 4s. Works with mouse, keyboard, and screen readers |
-| **Playback** | US-2 | Play/stop (or Space), a moving playhead, and tempo from 60 to 140 BPM. Edits are heard on the next loop, without restarting |
+| **Playback** | US-2 | Play/stop (or Space), a moving playhead, tempo from 60 to 140 BPM, and swing up to 60%. Edits are heard on the next loop, without restarting |
 | **Shape the sound** | US-3 | Per-row volume and mute, muffle (low-pass filter), and vinyl crackle, all live while playing |
 | **Undo and redo** | US-3 | Buttons or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z. Dragging a slider counts as one change |
 | **Accounts** | US-1 | Register and sign in with email and password. Anyone can use the editor; saving needs an account, and a signed-out Save keeps the beat |
