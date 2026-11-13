@@ -1,17 +1,55 @@
 # LoopLab
 
-A browser-based lo-fi beat maker. Toggle steps on a 16-step grid, add lo-fi effects (muffle, vinyl crackle, swing), save beats, share them by link, and remix other people's beats.
+A browser-based lo-fi beat maker. Toggle steps on a 5x16 grid, press play, shape the sound with lo-fi effects, then save your beat, share it by link, and remix other people's beats. No music training or install needed.
+
+**Live:** https://looplab-sand.vercel.app · **API docs:** https://looplab-sand.vercel.app/api-docs
 
 CS6983 AI Coding, Fall 2026, Project 2. Team: Kishan Kumar Selvakumar Anandraj and Nicholas Kaplun.
+
+![The LoopLab editor](docs/screenshots/lofi-panel.png)
+
+## Features
+
+| Feature | User story | What you can do |
+|---|---|---|
+| **Step grid** | US-2 | 5 rows (kick, snare, hi-hat, bass, synth) by 16 steps, grouped in 4s. Works with mouse, keyboard, and screen readers |
+| **Playback** | US-2 | Play/stop (or Space), a moving playhead, tempo from 60 to 140 BPM, and swing up to 60%. Edits are heard on the next loop, without restarting |
+| **Shape the sound** | US-3 | Per-row volume and mute, muffle (low-pass filter), and vinyl crackle, all live while playing |
+| **Undo and redo** | US-3 | Buttons or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z. Dragging a slider counts as one change |
+| **Accounts** | US-1 | Register and sign in with email and password. Anyone can use the editor; saving needs an account, and a signed-out Save keeps the beat |
+| **My Beats** | US-4 | Save, open, rename, and delete beats. New beats are private; one switch makes a beat public |
+| **Share links** | US-5 | Every public beat has a listen-only page at `/b/{id}` that plays it exactly as saved. Private beats show "not found" to everyone else |
+| **Gallery** | US-6 | Browse public beats by newest or most liked, preview one in place, and like it |
+| **Remix** | US-6 | Copy a public beat into your own private beat, credited "Remixed from {title} by {creator}" |
+| **Public API** | US-7 | Every endpoint documented in OpenAPI 3.1, with interactive docs at `/api-docs` |
+
+| Gallery | Share page | API docs |
+|---|---|---|
+| ![Gallery](docs/screenshots/gallery-preview.png) | ![Share page](docs/screenshots/share-page.png) | ![API docs](docs/screenshots/api-docs.png) |
+
+## Tech stack
+
+| Layer | What we use |
+|---|---|
+| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS 4, TypeScript |
+| Audio | Tone.js (synthesized sounds, loaded on the first Play click) |
+| Backend | Next.js route handlers, Zod validation, one JSON error format |
+| Database | PostgreSQL (Neon in production, Docker locally) through Prisma 7 |
+| Auth | Auth.js v5, email and password (bcrypt), JWT session in an HTTP-only cookie |
+| Testing | Vitest + React Testing Library (unit and integration), Playwright (end-to-end), 80% coverage gate on `src/lib` |
+| CI/CD | GitHub Actions (lint, typecheck, tests, build, E2E, CodeQL, npm audit, dependency review), Vercel with a preview per PR |
+
+## Project docs
 
 | Doc | What's in it |
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Requirements, user stories, acceptance criteria, data model, API |
 | [docs/mockup/index.html](docs/mockup/index.html) | Clickable mockup of every screen (open in a browser) |
-| [CLAUDE.md](CLAUDE.md) | Shared AI rules file: stack, architecture, conventions, workflow |
 | [docs/architecture.md](docs/architecture.md) | System diagram, request flows, and the database schema diagram |
-| [docs/openapi.yaml](docs/openapi.yaml) | API spec (interactive at `/api-docs` on any deployment) |
+| [docs/openapi.yaml](docs/openapi.yaml) | API spec (interactive at [`/api-docs`](https://looplab-sand.vercel.app/api-docs)) |
 | [docs/sprints/](docs/sprints/) | Sprint plans, standups, and retrospectives |
+| [docs/contributions.md](docs/contributions.md) | Partner contribution log: who built and reviewed what |
+| [CLAUDE.md](CLAUDE.md) | Shared AI rules file: stack, architecture, conventions, workflow |
 
 ## Run locally
 
@@ -20,7 +58,7 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-### Local database (needed for integration tests and, later, accounts and saving)
+### Local database (needed for accounts, saving, and the integration tests)
 
 LoopLab uses PostgreSQL through Prisma. Locally, run Postgres in Docker:
 
@@ -30,9 +68,13 @@ docker run -d --name looplab-db -e POSTGRES_USER=looplab -e POSTGRES_PASSWORD=lo
 docker exec looplab-db psql -U looplab -c "CREATE DATABASE looplab_test;"
 ```
 
-Then copy `.env.example` to `.env` (git-ignored) and set `AUTH_SECRET` (`openssl rand -base64 32`).
+Then copy `.env.example` to `.env` (git-ignored), set `AUTH_SECRET` (`openssl rand -base64 32`), and apply the schema with `npm run db:migrate`. `npm test` applies migrations to the test database on its own; without `DATABASE_URL_TEST`, the integration tests are skipped.
 
-and apply the schema: `npm run db:migrate`. `npm test` applies migrations to the test database on its own; without `DATABASE_URL_TEST`, the integration tests are skipped.
+| Variable | What it's for |
+|---|---|
+| `DATABASE_URL` | The app's Postgres database |
+| `DATABASE_URL_TEST` | A separate database for integration tests (emptied between tests) |
+| `AUTH_SECRET` | Signs the session cookie |
 
 ### Tests
 
@@ -42,8 +84,6 @@ and apply the schema: `npm run db:migrate`. `npm test` applies migrations to the
 | `npm run test:coverage` | Same, with the 80% coverage gate on `src/lib` |
 | `npm run test:e2e` | Browser tests (Playwright) |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
-
-Setup, deployment, API docs, and architecture diagrams will be added during Sprint 1 and 2.
 
 ## CI
 
