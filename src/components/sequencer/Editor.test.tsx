@@ -146,6 +146,139 @@ describe("Editor playback", () => {
   });
 });
 
+/** Labels of the cells that are on. */
+function onCells() {
+  return screen.queryAllByRole("button", { pressed: true }).map((cell) => cell.getAttribute("aria-label"));
+}
+
+const undoButton = () => screen.getByRole("button", { name: "Undo" });
+const redoButton = () => screen.getByRole("button", { name: "Redo" });
+
+/** Drags the tempo slider through `values`, then lets go (the native change event). */
+function dragTempo(values: number[]) {
+  const tempo = screen.getByRole("slider", { name: "Tempo" });
+  for (const value of values) fireEvent.input(tempo, { target: { value: String(value) } });
+  fireEvent.change(tempo);
+}
+
+describe("Editor undo and redo", () => {
+  it("disables Undo and Redo until there is something to undo or redo", async () => {
+    render(<Editor />);
+    expect(undoButton()).toBeDisabled();
+    expect(redoButton()).toBeDisabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    expect(undoButton()).toBeEnabled();
+    expect(redoButton()).toBeDisabled();
+
+    await userEvent.click(undoButton());
+    expect(onCells()).toEqual([]);
+    expect(undoButton()).toBeDisabled();
+    expect(redoButton()).toBeEnabled();
+
+    await userEvent.click(redoButton());
+    expect(onCells()).toEqual(["Kick step 1"]);
+    expect(redoButton()).toBeDisabled();
+  });
+
+  it("clears Redo after a new change", async () => {
+    render(<Editor />);
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 2" }));
+    await userEvent.click(undoButton());
+    expect(redoButton()).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Snare step 5" }));
+    expect(redoButton()).toBeDisabled();
+    expect(onCells()).toEqual(["Kick step 1", "Snare step 5"]);
+  });
+
+  it("undoes Clear and tempo changes", async () => {
+    render(<Editor />);
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hi-hat step 9" }));
+    dragTempo([100]);
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(onCells()).toEqual([]);
+
+    await userEvent.click(undoButton());
+    expect(onCells()).toEqual(["Kick step 1", "Hi-hat step 9"]);
+    expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("100");
+
+    await userEvent.click(undoButton());
+    expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("82");
+  });
+
+  it("makes a whole tempo drag one undo step", async () => {
+    render(<Editor />);
+    dragTempo([84, 90, 97, 105, 112]);
+    expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("112");
+    expect(screen.getAllByText("112 BPM")).toHaveLength(2);
+
+    await userEvent.click(undoButton());
+    expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("82");
+    expect(undoButton()).toBeDisabled();
+  });
+
+  it("undoes with Cmd+Z or Ctrl+Z, and redoes with Shift+Cmd+Z, Shift+Ctrl+Z, or Ctrl+Y", async () => {
+    render(<Editor />);
+    for (const name of ["Kick step 1", "Kick step 2", "Kick step 3"]) {
+      await userEvent.click(screen.getByRole("button", { name }));
+    }
+
+    await userEvent.keyboard("{Meta>}z{/Meta}");
+    expect(onCells()).toEqual(["Kick step 1", "Kick step 2"]);
+    await userEvent.keyboard("{Control>}z{/Control}");
+    expect(onCells()).toEqual(["Kick step 1"]);
+
+    await userEvent.keyboard("{Meta>}{Shift>}z{/Shift}{/Meta}");
+    expect(onCells()).toEqual(["Kick step 1", "Kick step 2"]);
+    await userEvent.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
+    expect(onCells()).toEqual(["Kick step 1", "Kick step 2", "Kick step 3"]);
+
+    await userEvent.keyboard("{Control>}z{/Control}");
+    await userEvent.keyboard("{Control>}y{/Control}");
+    expect(onCells()).toEqual(["Kick step 1", "Kick step 2", "Kick step 3"]);
+  });
+
+  it("uses the shortcuts while the tempo slider has focus", async () => {
+    render(<Editor />);
+    dragTempo([120]);
+    screen.getByRole("slider", { name: "Tempo" }).focus();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    expect(screen.getByRole("slider", { name: "Tempo" })).toHaveValue("82");
+  });
+
+  it("leaves Cmd/Ctrl+Z to a text field that has focus", async () => {
+    render(
+      <>
+        <input aria-label="Notes" />
+        <Editor />
+      </>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    screen.getByRole("textbox", { name: "Notes" }).focus();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    await userEvent.keyboard("{Meta>}z{/Meta}");
+    await userEvent.keyboard("{Control>}y{/Control}");
+    expect(onCells()).toEqual(["Kick step 1"]);
+  });
+
+  it("does not undo playback: undo while playing changes what plays, not whether it plays", async () => {
+    render(<Editor />);
+    await userEvent.click(screen.getByRole("button", { name: "Play" }));
+    await userEvent.click(screen.getByRole("button", { name: "Kick step 1" }));
+    act(() => vi.mocked(engine.start).mock.calls[0][1](2));
+
+    await userEvent.click(undoButton());
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+    expect(playheadCells()[0]).toBe("Kick step 3");
+    expect(vi.mocked(engine.update).mock.lastCall?.[0].tracks.kick.steps[0]).toBe(false);
+    expect(engine.stop).not.toHaveBeenCalled();
+    expect(undoButton()).toBeDisabled();
+  });
+});
+
 describe("Editor tempo", () => {
   it("has a Tempo slider from 60 to 140 BPM that starts at 82", () => {
     render(<Editor />);

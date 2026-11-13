@@ -37,8 +37,12 @@ function toggleStep(state: BeatPattern, track: TrackId, step: number): BeatPatte
   return { ...state, tracks: { ...state.tracks, [track]: { ...state.tracks[track], steps } } };
 }
 
-/** Turns every step off; tempo, swing, volume, mute, and effects stay as they are. */
+/**
+ * Turns every step off; tempo, swing, volume, mute, and effects stay as they are.
+ * Returns `state` itself when every step is already off, so history gets no empty entry.
+ */
 function clear(state: BeatPattern): BeatPattern {
+  if (TRACK_IDS.every((track) => state.tracks[track].steps.every((on) => !on))) return state;
   const tracks = { ...state.tracks };
   for (const track of TRACK_IDS) {
     tracks[track] = { ...tracks[track], steps: tracks[track].steps.map(() => false) };
