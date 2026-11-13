@@ -48,4 +48,4 @@ _Last updated: Fri Nov 13, 2026. PRs still in review are marked._
 - **Planning:** issues with acceptance criteria on the [project board](https://github.com/users/kishankumar5/projects/1), split by points at each sprint planning. See [`docs/sprints/`](sprints/).
 - **TDD:** every feature PR has a failing-test commit (with stubs that throw "not implemented") before the implementation commit.
 - **Reviews:** the other partner reviewed and approved every PR. Reviews checked the acceptance criteria, the TDD commit order, and access rules, not just green CI.
-- **What we'd change:** Sprint 1 ended with nothing merged because reviews stalled and PRs were stacked on each other. In Sprint 2 we merged as we went and called when a review waited more than two hours. See the [Sprint 1 retro](sprints/sprint-1/retro.md).
+- **What we'd change:** in Sprint 1 I stacked PRs on top of each other, which made them slow to review and merge. In Sprint 2 we opened PRs against `main` and merged as we went. See the [Sprint 1 retro](sprints/sprint-1/retro.md).
