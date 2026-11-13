@@ -5,6 +5,7 @@ import { PlayButton } from "@/components/sequencer/PlayButton";
 import { StepGrid } from "@/components/sequencer/StepGrid";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
+import type { RemixOriginal } from "@/lib/db/beats";
 import type { BeatPattern } from "@/lib/validation/beat";
 
 export interface ListenOnlyBeatProps {
@@ -16,6 +17,10 @@ export interface ListenOnlyBeatProps {
   /** The viewer owns the beat: show an Edit link back to the editor. */
   isOwner: boolean;
   isPublic: boolean;
+  /** Signed-in viewers can remix; signed-out ones are sent to sign in first. */
+  signedIn?: boolean;
+  isRemix?: boolean;
+  remixedFrom?: RemixOriginal | null;
 }
 
 /**

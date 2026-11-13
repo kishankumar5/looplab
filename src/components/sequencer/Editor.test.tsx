@@ -499,3 +499,25 @@ describe("Editor tempo", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 });
+
+describe("Editor remix credit (US-6)", () => {
+  it("credits the original of a remix", () => {
+    renderEditor({
+      beatId: "r1",
+      signedIn: true,
+      isRemix: true,
+      remixedFrom: { id: "o1", title: "rainy window", creator: { displayName: "maya" } },
+    });
+    expect(screen.getByText(/Remixed from/)).toHaveTextContent("Remixed from rainy window by maya");
+  });
+
+  it("says when a remix's original is gone", () => {
+    renderEditor({ beatId: "r1", signedIn: true, isRemix: true, remixedFrom: null });
+    expect(screen.getByText("Remixed from a beat that is no longer available")).toBeInTheDocument();
+  });
+
+  it("shows no credit for a beat that isn't a remix", () => {
+    renderEditor({ beatId: "b1", signedIn: true });
+    expect(screen.queryByText(/Remixed from/)).not.toBeInTheDocument();
+  });
+});

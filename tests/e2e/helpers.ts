@@ -34,9 +34,9 @@ const pattern = {
   effects: { muffle: 30, crackle: 20 },
 };
 
-/** Creates a user who owns one public and one private beat. */
-export async function seedCreatorWithBeats(suffix: string) {
-  await withDb(async (db) => {
+/** Creates a user who owns one public and one private beat, and returns the beats' ids. */
+export async function seedCreatorWithBeats(suffix: string): Promise<{ publicId: string; privateId: string }> {
+  return withDb(async (db) => {
     const ownerId = randomUUID();
     await db.query('INSERT INTO "User" (id, email, "displayName", "passwordHash") VALUES ($1, $2, $3, $4)', [
       ownerId,
@@ -45,8 +45,11 @@ export async function seedCreatorWithBeats(suffix: string) {
       "x",
     ]);
     const insertBeat = 'INSERT INTO "Beat" (id, "ownerId", title, pattern, "isPublic", "updatedAt") VALUES ($1, $2, $3, $4, $5, now())';
-    await db.query(insertBeat, [randomUUID(), ownerId, `public ${suffix}`, JSON.stringify(pattern), true]);
-    await db.query(insertBeat, [randomUUID(), ownerId, `private ${suffix}`, JSON.stringify(pattern), false]);
+    const publicId = randomUUID();
+    const privateId = randomUUID();
+    await db.query(insertBeat, [publicId, ownerId, `public ${suffix}`, JSON.stringify(pattern), true]);
+    await db.query(insertBeat, [privateId, ownerId, `private ${suffix}`, JSON.stringify(pattern), false]);
+    return { publicId, privateId };
   });
 }
 

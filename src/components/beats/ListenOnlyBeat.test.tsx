@@ -7,6 +7,7 @@ import { ListenOnlyBeat, type ListenOnlyBeatProps } from "./ListenOnlyBeat";
 
 // Tests never play sound: they check what the audio engine was told.
 vi.mock("@/lib/audio/engine");
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/b/b1" }));
 
 beforeEach(() => {
   vi.resetAllMocks();

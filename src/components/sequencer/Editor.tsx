@@ -8,6 +8,7 @@ import { useSequencer } from "@/hooks/useSequencer";
 import { useSpaceShortcut } from "@/hooks/useSpaceShortcut";
 import { useUndoShortcuts } from "@/hooks/useUndoShortcuts";
 import { useState } from "react";
+import type { RemixOriginal } from "@/lib/db/beats";
 import type { BeatPattern } from "@/lib/validation/beat";
 import { StepGrid } from "./StepGrid";
 import { Transport } from "./Transport";
@@ -24,6 +25,9 @@ export interface EditorProps {
   initialIsPublic?: boolean;
   /** Called once, when the first save creates the beat, before the address changes to /beats/{id}. */
   onCreated?: (id: string) => void;
+  /** For a remix: credit the original (or say it is gone). */
+  isRemix?: boolean;
+  remixedFrom?: RemixOriginal | null;
 }
 
 /**
