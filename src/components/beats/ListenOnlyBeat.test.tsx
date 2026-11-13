@@ -67,6 +67,8 @@ describe("ListenOnlyBeat (US-5)", () => {
     await userEvent.tab();
     expect(screen.getByRole("button", { name: "Play" })).toHaveFocus();
     await userEvent.tab();
+    expect(screen.getByRole("button", { name: "Remix" })).toHaveFocus();
+    await userEvent.tab();
     expect(document.body).toHaveFocus();
   });
 

@@ -57,6 +57,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)("listen-only page /b/[id] (US-5)
       pattern,
       isOwner: false,
       isPublic: true,
+      signedIn: false,
+      isRemix: false,
+      remixedFrom: null,
     });
   });
 

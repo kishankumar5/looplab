@@ -59,6 +59,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)("saved-beat editor page /beats/[
       initialPattern: pattern,
       signedIn: true,
       initialIsPublic: false,
+      isRemix: false,
+      remixedFrom: null,
     });
   });
 

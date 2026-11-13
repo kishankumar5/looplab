@@ -2,6 +2,7 @@
 
 import { SaveBar } from "@/components/beats/SaveBar";
 import { ShareButton } from "@/components/beats/ShareButton";
+import { RemixCredit } from "@/components/beats/RemixCredit";
 import { VisibilityToggle } from "@/components/beats/VisibilityToggle";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useSequencer } from "@/hooks/useSequencer";
@@ -38,6 +39,7 @@ export interface EditorProps {
  */
 export function Editor(props: EditorProps) {
   const { beatId, initialTitle, initialPattern, signedIn, initialIsPublic = false, onCreated } = props;
+  const { isRemix = false, remixedFrom = null } = props;
   const sequencer = useSequencer(initialPattern);
   const { pattern } = sequencer;
   const playback = usePlayback(pattern);
@@ -58,6 +60,7 @@ export function Editor(props: EditorProps) {
           <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{pattern.bpm} BPM</span>
           {savedId && <VisibilityToggle beatId={savedId} isPublic={isPublic} onChange={setIsPublic} />}
         </SaveBar>
+        <RemixCredit isRemix={isRemix} remixedFrom={remixedFrom} />
       </div>
       <Transport
         playing={playback.playing}
