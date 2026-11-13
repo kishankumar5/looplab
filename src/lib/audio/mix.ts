@@ -23,3 +23,18 @@ export function compressorMakeupDb(threshold: number, ratio: number): number {
   const fullRangeDb = threshold * (1 - 1 / ratio);
   return -0.6 * fullRangeDb;
 }
+
+/** The muffle filter's cutoff (Hz) for a muffle value 0 to 100 (PRD US-3). */
+export function muffleCutoffHz(_muffle: number): number {
+  throw new Error("not implemented");
+}
+
+/** The crackle's level as a linear gain, for a crackle value 0 to 100 (PRD US-3). */
+export function crackleGain(_crackle: number): number {
+  throw new Error("not implemented");
+}
+
+/** A vinyl-crackle sample: faint hiss with occasional pops. `random` is Math.random in the app. */
+export function crackleSamples(_length: number, _random: () => number): Float32Array {
+  throw new Error("not implemented");
+}
