@@ -9,14 +9,14 @@ Boxes marked (planned) are on the Sprint 1 or 2 board but not merged yet. A PNG 
 ```mermaid
 flowchart LR
   subgraph Browser
-    UI["Pages (React 19 + Tailwind 4)<br/>/ and /beats/{id} editor · /gallery · /signin · /register<br/>/me · /b/{id} (planned) · /api-docs"]
+    UI["Pages (React 19 + Tailwind 4)<br/>/ and /beats/{id} editor · /gallery · /signin · /register<br/>/me · /b/{id} listen-only · /api-docs"]
     Editor["Sequencer state (useSequencer)<br/>pure sequencerReducer wrapped by<br/>withHistory: undo/redo, 100 steps"]
     Audio["Audio engine (src/lib/audio/engine.ts)<br/>Tone.js / Web Audio, loaded on<br/>the first Play click"]
     UI --> Editor --> Audio
   end
 
   subgraph Vercel["Vercel (Next.js 16)"]
-    RSC["Server Components<br/>editor pages (session, saved beat)<br/>gallery list, header session"]
+    RSC["Server Components<br/>editor and /b/{id} pages (session, beat)<br/>gallery list, header session"]
     API["Route handlers /api/*<br/>register · beats · likes · openapi"]
     AuthJS["Auth.js v5<br/>Credentials + JWT cookie"]
     Lib["src/lib<br/>validation (Zod) · db (Prisma) · api errors"]
@@ -49,7 +49,10 @@ flowchart LR
 | Register | `AuthForm` → `POST /api/auth/register` → Zod `registerSchema` → `createUser()` (bcrypt) → then Auth.js `signIn("credentials")` sets the JWT cookie |
 | Edit and play a beat | Grid click → `useSequencer` (`sequencerReducer` wrapped by `withHistory`) → new pattern → `usePlayback` → `engine.update()`. The first Play click imports Tone.js and unlocks audio. No server involved. |
 | Save a new beat | `SaveBar` → `POST /api/beats` → `createBeat()` → `history.replaceState` changes the URL to `/beats/{id}` without a navigation, so the same editor stays on screen (still playing, same undo history) and later saves `PATCH` that beat. A link back to `/` afterwards starts a new beat; Back to a `/beats/{id}` the editor isn't showing loads that beat's page. Signed out, Save keeps the beat as a draft in `localStorage`, goes to `/signin`, and the editor at `/` starts from that draft when you come back. |
-| Open `/beats/{id}` | `SavedBeatEditor` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `getBeat()` → the owner gets the editor, starting a fresh undo history from the saved beat; anyone else gets the 404 page. |
+| Open `/beats/{id}` | `SavedBeatEditor` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `findBeat()` → the owner gets the editor, starting a fresh undo history from the saved beat; anyone else is sent to `/b/{id}` for a public beat, or gets the 404 page for a private one. |
+| Make a beat public | `VisibilityToggle` (editor title bar, or a My Beats row) → `PATCH /api/beats/{id}` `{ isPublic }` → `updateBeat()` (owner only). Saved right away; not part of the undo history. |
+| Copy share link | `ShareButton` (enabled only for a saved, public beat) → `navigator.clipboard.writeText("{origin}/b/{id}")` → "Link copied" toast. No server involved. |
+| Open `/b/{id}` | `SharedBeat` (inside `<Suspense>`, after `connection()`) → `getCurrentUserId()` → `findBeat()` → `ListenOnlyBeat`: title, creator, tempo, Play/Stop through the same `usePlayback` and engine, and the read-only grid. A private beat gets the same not-found page as an unknown id (`src/app/b/[id]/not-found.tsx`: "This beat is private or doesn't exist", with a link to the gallery), except for its owner, who sees the beat and an Edit link. |
 
 ## The editor
 

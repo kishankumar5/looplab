@@ -76,3 +76,40 @@ describe("StepGrid", () => {
     expect(playheadCells()).toEqual([]);
   });
 });
+
+describe("StepGrid, read-only (US-5)", () => {
+  function renderReadOnly(playheadStep: number | null = null) {
+    const pattern = defaultPattern();
+    pattern.tracks.kick.steps[0] = true;
+    render(<StepGrid pattern={pattern} playheadStep={playheadStep} />);
+    return screen.getByRole("group", { name: "Step grid (read-only)" });
+  }
+
+  it("says it's read-only, and announces every cell as not editable", () => {
+    const grid = renderReadOnly();
+    const cells = within(grid).getAllByRole("button");
+    expect(cells).toHaveLength(80);
+    for (const cell of cells) expect(cell).toBeDisabled();
+    expect(within(grid).getByRole("button", { name: "Kick step 1" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("doesn't toggle a cell on click, Enter, or Space", async () => {
+    const grid = renderReadOnly();
+    const empty = within(grid).getByRole("button", { name: "Snare step 9" });
+    const on = within(grid).getByRole("button", { name: "Kick step 1" });
+
+    await userEvent.click(empty);
+    await userEvent.click(on);
+    empty.focus();
+    await userEvent.keyboard("{Enter} ");
+
+    expect(empty).toHaveAttribute("aria-pressed", "false");
+    expect(on).toHaveAttribute("aria-pressed", "true");
+    expect(empty).not.toHaveFocus();
+  });
+
+  it("still shows the playhead", () => {
+    renderReadOnly(2);
+    expect(playheadCells()).toEqual(["Kick step 3", "Snare step 3", "Hi-hat step 3", "Bass step 3", "Synth step 3"]);
+  });
+});

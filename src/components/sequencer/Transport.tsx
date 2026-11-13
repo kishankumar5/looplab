@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { MAX_BPM, MIN_BPM } from "@/lib/validation/beat";
+import { PlayButton } from "./PlayButton";
 
 export interface TransportProps {
   playing: boolean;
@@ -14,27 +15,19 @@ export interface TransportProps {
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  /** Shown after Clear, such as Copy share link. */
+  children?: ReactNode;
 }
 
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-2";
 const GHOST_BUTTON = `cursor-pointer rounded-lg border border-line px-3.5 py-2 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS_RING}`;
 
-/** The bar above the grid (mockup Editor screen): Play/Stop, Tempo, then Undo, Redo, and Clear. */
+/** The bar above the grid (mockup Editor screen): Play/Stop, Tempo, then Undo, Redo, Clear, and `children`. */
 export function Transport(props: TransportProps) {
-  const { playing, onTogglePlay, bpm, onTempoChange, onTempoCommit, onClear } = props;
+  const { playing, onTogglePlay, bpm, onTempoChange, onTempoCommit, onClear, children } = props;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-4 rounded-[10px] bg-panel px-3.5 py-3">
-      <button
-        type="button"
-        aria-label={playing ? "Stop" : "Play"}
-        onClick={onTogglePlay}
-        className={`grid size-12 cursor-pointer place-items-center rounded-full bg-accent text-lg font-black text-on-accent ${FOCUS_RING}`}
-      >
-        {/* ▶ sits a touch left of centre in most fonts; nudge it. */}
-        <span aria-hidden className={playing ? "" : "translate-x-px"}>
-          {playing ? "■" : "▶"}
-        </span>
-      </button>
+      <PlayButton playing={playing} onToggle={onTogglePlay} />
       <TempoSlider bpm={bpm} onChange={onTempoChange} onCommit={onTempoCommit} />
       {/* TODO(#10): Swing slider */}
       <span className="flex-1" />
@@ -42,7 +35,7 @@ export function Transport(props: TransportProps) {
       <button type="button" onClick={onClear} className={GHOST_BUTTON}>
         Clear
       </button>
-      {/* TODO(#9): Copy share link */}
+      {children}
     </div>
   );
 }

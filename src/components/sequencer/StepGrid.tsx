@@ -6,8 +6,8 @@ export interface StepGridProps {
   pattern: BeatPattern;
   /** 0-based step the loop is playing, highlighted as the playhead; null or omitted when stopped. */
   playheadStep?: number | null;
-  /** `step` is 0-based. */
-  onToggleStep: (track: TrackId, step: number) => void;
+  /** `step` is 0-based. Leave it out for a read-only grid (the listen-only page): nothing toggles. */
+  onToggleStep?: (track: TrackId, step: number) => void;
 }
 
 /** Steps are shown in 4 blocks of 4 so beats are easy to count (PRD US-2): [[0..3], [4..7], ...]. */
@@ -34,10 +34,11 @@ function blockClass(blockIndex: number, edge: Edge) {
   return `grid grid-cols-4 gap-[5px] px-1.5 ${EDGE_PADDING[edge]} ${band}`;
 }
 
-/** The 5 x 16 step grid (mockup Editor screen, PRD US-2). */
+/** The 5 x 16 step grid (mockup Editor screen, PRD US-2). Read-only without onToggleStep (PRD US-5). */
 export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGridProps) {
+  const label = onToggleStep ? "Step grid" : "Step grid (read-only)";
   return (
-    <div role="group" aria-label="Step grid" className="overflow-x-auto rounded-[10px] bg-panel p-3">
+    <div role="group" aria-label={label} className="overflow-x-auto rounded-[10px] bg-panel p-3">
       <StepNumbers playheadStep={playheadStep} />
       {TRACK_IDS.map((track, row) => (
         <div key={track} className={ROW}>
@@ -51,7 +52,7 @@ export function StepGrid({ pattern, playheadStep = null, onToggleStep }: StepGri
                   step={step}
                   on={pattern.tracks[track].steps[step]}
                   playhead={step === playheadStep}
-                  onToggle={() => onToggleStep(track, step)}
+                  onToggle={onToggleStep && (() => onToggleStep(track, step))}
                 />
               ))}
             </div>

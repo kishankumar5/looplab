@@ -365,6 +365,51 @@ describe("Editor title and saving", () => {
   });
 });
 
+describe("Editor visibility and sharing (US-4, US-5)", () => {
+  const SAVED_BEAT: Partial<EditorProps> = { beatId: "b1", initialTitle: "rainy window", signedIn: true };
+  const shareButton = () => screen.getByRole("button", { name: "Copy share link" });
+
+  it("has no Public/Private toggle for a beat that isn't saved yet, and can't be shared", () => {
+    renderEditor();
+    expect(screen.queryByRole("button", { name: "Make public" })).toBeNull();
+    expect(screen.queryByText("Private")).toBeNull();
+    expect(shareButton()).toBeDisabled();
+  });
+
+  it("shows a saved beat as Private, and lets you share it once it's public", async () => {
+    fetchMock.mockReturnValue(okJson({ beat: { id: "b1", isPublic: true } }));
+    renderEditor(SAVED_BEAT);
+    expect(screen.getByText("Private")).toBeInTheDocument();
+    expect(shareButton()).toBeDisabled();
+    expect(shareButton()).toHaveAccessibleDescription("Make the beat public to share it.");
+
+    await userEvent.click(screen.getByRole("button", { name: "Make public" }));
+
+    expect(await screen.findByText("Public")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/beats/b1", expect.objectContaining({ method: "PATCH" }));
+    expect(shareButton()).toBeEnabled();
+    // Visibility is saved on its own: it isn't an edit to undo, and the beat isn't left unsaved.
+    expect(undoButton()).toBeDisabled();
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+  });
+
+  it("starts from the saved beat's visibility", () => {
+    renderEditor({ ...SAVED_BEAT, initialIsPublic: true });
+    expect(screen.getByText("Public")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make private" })).toBeInTheDocument();
+    expect(shareButton()).toBeEnabled();
+  });
+
+  it("shows the toggle once the first save creates the beat", async () => {
+    fetchMock.mockReturnValue(okJson({ beat: { id: "b9" } }, 201));
+    renderEditor({ signedIn: true });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("button", { name: "Make public" })).toBeInTheDocument();
+    expect(screen.getByText("Private")).toBeInTheDocument();
+  });
+});
+
 describe("Editor tempo", () => {
   it("has a Tempo slider from 60 to 140 BPM that starts at 82", () => {
     renderEditor();

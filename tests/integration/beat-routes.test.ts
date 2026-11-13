@@ -86,4 +86,41 @@ describe.skipIf(!url)("beat routes (US-4)", () => {
     auth.userId = null;
     expect((await beat.PATCH(json("PATCH", { title: "x" }), ctx(created.id))).status).toBe(401);
   });
+
+  it("shows a beat to anyone once the owner makes it public, and hides it again when made private (US-5)", async () => {
+    const owner = (await seedUser(db!)).id;
+    const someoneElse = (await seedUser(db!)).id;
+    auth.userId = owner;
+    const { beat: created } = await (await beats.POST(json("POST", { pattern: defaultPattern() }))).json();
+    const read = async (viewer: string | null) => {
+      auth.userId = viewer;
+      return beat.GET(json("GET"), ctx(created.id));
+    };
+    const setPublic = async (isPublic: boolean) => {
+      auth.userId = owner;
+      return (await beat.PATCH(json("PATCH", { isPublic }), ctx(created.id))).json();
+    };
+
+    expect((await setPublic(true)).beat.isPublic).toBe(true);
+    const signedOut = await read(null);
+    expect(signedOut.status).toBe(200);
+    expect((await signedOut.json()).beat).toMatchObject({ id: created.id, isPublic: true, isOwner: false });
+    expect((await read(someoneElse)).status).toBe(200);
+
+    expect((await setPublic(false)).beat.isPublic).toBe(false);
+    expect((await read(null)).status).toBe(404);
+    expect((await read(someoneElse)).status).toBe(404);
+    // The owner can always see their own beat.
+    expect((await read(owner)).status).toBe(200);
+  });
+
+  it("only the owner can change a beat's visibility", async () => {
+    auth.userId = (await seedUser(db!)).id;
+    const { beat: created } = await (await beats.POST(json("POST", { pattern: defaultPattern() }))).json();
+    await beat.PATCH(json("PATCH", { isPublic: true }), ctx(created.id));
+
+    auth.userId = (await seedUser(db!)).id;
+    expect((await beat.PATCH(json("PATCH", { isPublic: false }), ctx(created.id))).status).toBe(404);
+    expect((await (await beat.GET(json("GET"), ctx(created.id))).json()).beat.isPublic).toBe(true);
+  });
 });
