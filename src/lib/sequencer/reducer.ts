@@ -10,7 +10,8 @@ export type SequencerAction =
   | { type: "clear" }
   | { type: "setTempo"; bpm: number }
   | { type: "setVolume"; track: TrackId; volume: number }
-  | { type: "toggleMute"; track: TrackId };
+  | { type: "toggleMute"; track: TrackId }
+  | { type: "setSwing"; swing: number };
 
 /**
  * The editor's single reducer (PRD US-2). Pure: returns a new pattern and never mutates `state`,
@@ -28,6 +29,8 @@ export function sequencerReducer(state: BeatPattern, action: SequencerAction): B
       return setVolume(state, action.track, action.volume);
     case "toggleMute":
       return toggleMute(state, action.track);
+    case "setSwing":
+      return setSwing(state, action.swing);
   }
 }
 
@@ -39,6 +42,10 @@ function setVolume(state: BeatPattern, track: TrackId, volume: number): BeatPatt
   if (!Number.isFinite(volume)) return state;
   const next = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, Math.round(volume)));
   return next === state.tracks[track].volume ? state : withTrack(state, track, { volume: next });
+}
+
+function setSwing(_state: BeatPattern, _swing: number): BeatPattern {
+  throw new Error("not implemented");
 }
 
 /** Mutes an unmuted row, or unmutes a muted one; its volume and steps stay as they are. */

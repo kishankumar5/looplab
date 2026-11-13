@@ -134,3 +134,15 @@ describe("ListenOnlyBeat (US-5)", () => {
     expect(screen.getByText(/only you can see this page/i)).toBeInTheDocument();
   });
 });
+
+describe("ListenOnlyBeat swing (#10)", () => {
+  it("shows the saved swing next to the tempo, only when there is some", () => {
+    const pattern = savedPattern();
+    pattern.swing = 35;
+    const { unmount } = renderBeat({ pattern });
+    expect(screen.getByText(/swing 35%/)).toBeInTheDocument();
+    unmount();
+    renderBeat({ pattern: { ...pattern, swing: 0 } });
+    expect(screen.queryByText(/swing/)).toBeNull();
+  });
+});

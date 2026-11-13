@@ -23,3 +23,8 @@ export function compressorMakeupDb(threshold: number, ratio: number): number {
   const fullRangeDb = threshold * (1 - 1 / ratio);
   return -0.6 * fullRangeDb;
 }
+
+/** How late (seconds) step `step` (0-based) plays for a swing of 0 to 60% at `bpm` (PRD US-3). */
+export function swingDelaySeconds(_step: number, _swing: number, _bpm: number): number {
+  throw new Error("not implemented");
+}
