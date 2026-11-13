@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultPattern, type BeatPattern } from "@/lib/validation/beat";
+import { TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
+import { compressorMakeupDb } from "./mix";
 
 // A stand-in for Tone.js and the instruments: these tests check what the engine tells Tone to do
 // (start, tempo, which row plays at which audio time), never what comes out of the speakers.
@@ -11,14 +12,65 @@ const fake = vi.hoisted(() => ({
   unlockAudio: vi.fn(),
   createVoices: vi.fn(),
   voices: { kick: vi.fn(), snare: vi.fn(), hihat: vi.fn(), bass: vi.fn(), synth: vi.fn() },
+  /** The level (dB) the engine gave the master Volume. */
+  masterDb: undefined as number | undefined,
+  /** The master Volume, the limiter (a Compressor), and whatever went to the speakers. */
+  master: undefined as FakeNodeShape | undefined,
+  limiter: undefined as (FakeNodeShape & { options: Record<string, number> }) | undefined,
+  toSpeakers: [] as unknown[],
 }));
+
+interface FakeNodeShape {
+  outputs: unknown[];
+}
 
 vi.mock("tone", () => ({
   start: fake.unlockAudio,
   getTransport: () => fake.transport,
   getDraw: () => fake.draw,
   Volume: class {
+    outputs: unknown[] = [];
+    constructor(db?: number) {
+      fake.masterDb = db;
+      fake.master = this;
+    }
+    connect(node: unknown) {
+      this.outputs.push(node);
+      return this;
+    }
     toDestination() {
+      fake.toSpeakers.push(this);
+      return this;
+    }
+  },
+  Compressor: class {
+    outputs: unknown[] = [];
+    constructor(public options: Record<string, number>) {
+      fake.limiter = this;
+    }
+    connect(node: unknown) {
+      this.outputs.push(node);
+      return this;
+    }
+    toDestination() {
+      fake.toSpeakers.push(this);
+      return this;
+    }
+  },
+  /** A row's channel: records its level (rampTo jumps straight there) and where it's connected. */
+  Gain: class {
+    gain: { value: number; rampTo: (value: number) => void };
+    outputs: unknown[] = [];
+    constructor(value = 1) {
+      const gain = { value, rampTo: (next: number) => void (gain.value = next) };
+      this.gain = gain;
+    }
+    connect(node: unknown) {
+      this.outputs.push(node);
+      return this;
+    }
+    toDestination() {
+      fake.toSpeakers.push(this);
       return this;
     }
   },
@@ -31,6 +83,10 @@ beforeEach(async () => {
   vi.resetAllMocks();
   fake.transport.bpm.value = 120;
   fake.pendingDraws.length = 0;
+  fake.masterDb = undefined;
+  fake.master = undefined;
+  fake.limiter = undefined;
+  fake.toSpeakers.length = 0;
   fake.unlockAudio.mockResolvedValue(undefined);
   fake.createVoices.mockReturnValue(fake.voices);
   fake.draw.schedule.mockImplementation((callback: () => void) => fake.pendingDraws.push(callback));
@@ -59,6 +115,19 @@ function pattern(edit: (p: BeatPattern) => void = () => {}): BeatPattern {
 }
 
 const ignoreSteps = () => {};
+
+interface FakeChannel {
+  gain: { value: number };
+  outputs: unknown[];
+}
+
+/** The channel the engine routed a row's instrument into (what it gave createVoices). */
+function channel(track: TrackId): FakeChannel | undefined {
+  const outputs = fake.createVoices.mock.calls[0]?.[1] as Partial<Record<TrackId, FakeChannel>> | undefined;
+  return outputs?.[track];
+}
+
+const levels = () => TRACK_IDS.map((track) => channel(track)?.gain.value);
 
 describe("audio engine", () => {
   it("does not touch audio before start", () => {
@@ -131,6 +200,79 @@ describe("audio engine", () => {
     engine.update(pattern((p) => (p.bpm = 128)));
     expect(fake.transport.bpm.value).toBe(128);
     expect(fake.transport.start).toHaveBeenCalledOnce();
+  });
+
+  it("gives each row its own channel into the master, set from the beat's volume and mute", async () => {
+    await engine.start(
+      pattern((p) => {
+        p.tracks.kick.volume = 100;
+        p.tracks.snare.volume = 50;
+        p.tracks.hihat.muted = true;
+      }),
+      ignoreSteps,
+    );
+    // kick, snare, hihat, bass, synth; 80 is the default volume.
+    expect(levels()).toEqual([1, 0.25, 0, 0.64, 0.64]);
+    const master = channel("kick")?.outputs;
+    expect(master).toHaveLength(1);
+    for (const track of TRACK_IDS) expect(channel(track)?.outputs).toEqual(master);
+  });
+
+  it("sends the mix through a limiter just under full scale before the speakers, so it can't clip", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    const limiter = fake.limiter;
+    // master -> limiter -> make-up trim -> speakers, and nothing else reaches the speakers.
+    expect(fake.master?.outputs).toEqual([limiter]);
+    expect(limiter?.options).toMatchObject({ threshold: -1, ratio: 20, knee: 0 });
+    // Hits land every 16th note, so the limiter must react at once (attack 0) and still be holding
+    // the gain down when the next hit lands (release 100 ms or more). Measured in Chromium with
+    // every row at 100: a 10 ms release let the loudest beat reach +0.8 dBFS, and 250 ms held it at
+    // -0.5 dBFS, at 82 and at 140 BPM.
+    expect(limiter?.options.attack).toBe(0);
+    expect(limiter?.options.release).toBeGreaterThanOrEqual(0.1);
+    const trim = limiter?.outputs[0] as FakeChannel | undefined;
+    expect(limiter?.outputs).toHaveLength(1);
+    expect(fake.toSpeakers).toEqual([trim]);
+    expect(trim?.outputs).toEqual([]);
+  });
+
+  it("plays a row at the default volume (80) as loud as before per-row volume: -4 dB overall", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    // Before #11 every row went straight into the master at -4 dB. Below the threshold the limiter
+    // only adds its make-up gain, which the trim after it takes off again.
+    const trim = fake.limiter?.outputs[0] as FakeChannel | undefined;
+    const dB = (gain: number | undefined) => 20 * Math.log10(gain ?? Number.NaN);
+    const kickDb =
+      (fake.masterDb ?? Number.NaN) +
+      dB(channel("kick")?.gain.value) +
+      compressorMakeupDb(-1, 20) +
+      dB(trim?.gain.value);
+    expect(kickDb).toBeCloseTo(-4, 6);
+    // The master itself sits just below 0 dB, so a row at 100 is only about 4 dB louder than that.
+    expect(fake.masterDb).toBeLessThan(0);
+  });
+
+  it("changes a row's volume and mute live while playing, without restarting", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    engine.update(
+      pattern((p) => {
+        p.tracks.bass.volume = 100;
+        p.tracks.kick.muted = true;
+      }),
+    );
+    expect(levels()).toEqual([0, 0.64, 0.64, 1, 0.64]);
+
+    engine.update(pattern((p) => (p.tracks.bass.volume = 100)));
+    expect(channel("kick")?.gain.value).toBe(0.64);
+    expect(fake.transport.start).toHaveBeenCalledOnce();
+  });
+
+  it("uses the latest volume and mute when it starts again", async () => {
+    await engine.start(pattern(), ignoreSteps);
+    engine.stop();
+    engine.update(pattern((p) => (p.tracks.synth.muted = true)));
+    await engine.start(pattern((p) => (p.tracks.synth.muted = true)), ignoreSteps);
+    expect(channel("synth")?.gain.value).toBe(0);
   });
 
   it("stops the transport and drops playhead updates that were still waiting", async () => {

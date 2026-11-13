@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { defaultPattern } from "@/lib/validation/beat";
@@ -111,5 +111,71 @@ describe("StepGrid, read-only (US-5)", () => {
   it("still shows the playhead", () => {
     renderReadOnly(2);
     expect(playheadCells()).toEqual(["Kick step 3", "Snare step 3", "Hi-hat step 3", "Bass step 3", "Synth step 3"]);
+  });
+});
+
+describe("StepGrid row volume and mute (US-3)", () => {
+  const NAMES = ["Kick", "Snare", "Hi-hat", "Bass", "Synth"];
+
+  function renderWithRowControls(pattern = defaultPattern()) {
+    const handlers = { onToggleStep: vi.fn(), onVolumeChange: vi.fn(), onVolumeCommit: vi.fn(), onToggleMute: vi.fn() };
+    render(<StepGrid pattern={pattern} {...handlers} />);
+    return handlers;
+  }
+
+  it("gives every row a volume slider from 0 to 100 and a Mute button", () => {
+    renderWithRowControls();
+    for (const name of NAMES) {
+      const slider = screen.getByRole("slider", { name: `${name} volume` });
+      expect(slider).toHaveAttribute("min", "0");
+      expect(slider).toHaveAttribute("max", "100");
+      expect(slider).toHaveValue("80");
+      expect(screen.getByRole("button", { name: `Mute ${name}` })).toHaveAttribute("aria-pressed", "false");
+    }
+  });
+
+  it("shows each row's volume as text, and a muted row's Mute button as on", () => {
+    const pattern = defaultPattern();
+    pattern.tracks.bass.volume = 55;
+    pattern.tracks.synth.muted = true;
+    renderWithRowControls(pattern);
+    expect(screen.getByRole("slider", { name: "Bass volume" })).toHaveValue("55");
+    expect(screen.getByText("55")).toBeInTheDocument();
+    expect(screen.getAllByText("80")).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Mute Synth" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Mute Bass" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("asks to change a row's volume as its slider moves, and commits once when it's let go", () => {
+    const { onVolumeChange, onVolumeCommit } = renderWithRowControls();
+    const slider = screen.getByRole("slider", { name: "Snare volume" });
+    fireEvent.input(slider, { target: { value: "60" } });
+    fireEvent.input(slider, { target: { value: "45" } });
+    expect(onVolumeChange.mock.calls).toEqual([
+      ["snare", 60],
+      ["snare", 45],
+    ]);
+    expect(onVolumeCommit).not.toHaveBeenCalled();
+
+    fireEvent.change(slider);
+    expect(onVolumeCommit).toHaveBeenCalledOnce();
+  });
+
+  it("asks to mute or unmute a row when its Mute button is pressed", async () => {
+    const { onToggleMute, onToggleStep } = renderWithRowControls();
+    await userEvent.click(screen.getByRole("button", { name: "Mute Hi-hat" }));
+    screen.getByRole("button", { name: "Mute Kick" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(onToggleMute.mock.calls).toEqual([["hihat"], ["kick"]]);
+    expect(onToggleStep).not.toHaveBeenCalled();
+  });
+
+  it("has no row controls on a read-only grid, but says which rows are muted", () => {
+    const pattern = defaultPattern();
+    pattern.tracks.snare.muted = true;
+    render(<StepGrid pattern={pattern} />);
+    expect(screen.queryAllByRole("slider")).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: /^Mute/ })).toHaveLength(0);
+    expect(screen.getAllByText("Muted")).toHaveLength(1);
   });
 });
