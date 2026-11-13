@@ -61,6 +61,9 @@ export function Editor(props: EditorProps) {
         bpm={pattern.bpm}
         onTempoChange={(bpm) => sequencer.preview({ type: "setTempo", bpm })}
         onTempoCommit={sequencer.commit}
+        swing={pattern.swing}
+        onSwingChange={(swing) => sequencer.preview({ type: "setSwing", swing })}
+        onSwingCommit={sequencer.commit}
         canUndo={sequencer.canUndo}
         canRedo={sequencer.canRedo}
         onUndo={sequencer.undo}

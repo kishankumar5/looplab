@@ -1,4 +1,4 @@
-import { MAX_BPM, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type Track, type TrackId } from "@/lib/validation/beat";
+import { MAX_BPM, MAX_SWING, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type Track, type TrackId } from "@/lib/validation/beat";
 
 /** A row's volume range (PRD US-3; the beat schema stores 0 to 100). */
 const MIN_VOLUME = 0;
@@ -44,8 +44,14 @@ function setVolume(state: BeatPattern, track: TrackId, volume: number): BeatPatt
   return next === state.tracks[track].volume ? state : withTrack(state, track, { volume: next });
 }
 
-function setSwing(_state: BeatPattern, _swing: number): BeatPattern {
-  throw new Error("not implemented");
+/**
+ * Swing as a whole percentage from 0 to 60, like a saved beat stores. Returns `state` itself for a
+ * no-op, so undo/redo history doesn't fill with empty changes.
+ */
+function setSwing(state: BeatPattern, swing: number): BeatPattern {
+  if (!Number.isFinite(swing)) return state;
+  const next = Math.min(MAX_SWING, Math.max(0, Math.round(swing)));
+  return next === state.swing ? state : { ...state, swing: next };
 }
 
 /** Mutes an unmuted row, or unmutes a muted one; its volume and steps stay as they are. */

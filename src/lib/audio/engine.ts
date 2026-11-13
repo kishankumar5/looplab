@@ -1,6 +1,6 @@
 import type * as Tone from "tone";
 import { STEPS_PER_BAR, TRACK_IDS, defaultPattern, type BeatPattern, type TrackId } from "@/lib/validation/beat";
-import { compressorMakeupDb, trackGain } from "./mix";
+import { compressorMakeupDb, swingDelaySeconds, trackGain } from "./mix";
 import { createVoices, type Voices } from "./voices";
 
 /** Called with the 0-based step being heard, in time with the sound, while the loop plays. */
@@ -129,12 +129,14 @@ function tick(time: number): void {
   if (!rig) return;
   const step = nextStep;
   nextStep = (step + 1) % STEPS_PER_BAR;
+  // Swing (PRD US-3) pushes every second 16th a little late; the playhead moves with the sound.
+  const at = time + swingDelaySeconds(step, pattern.swing, pattern.bpm);
   // Muted rows still trigger; their channel is silent (see setLevels).
   for (const track of TRACK_IDS) {
-    if (pattern.tracks[track].steps[step]) rig.voices[track](time);
+    if (pattern.tracks[track].steps[step]) rig.voices[track](at);
   }
   // Move the playhead when the step is heard, not when it is scheduled.
   rig.tone.getDraw().schedule(() => {
     if (playing) listener(step);
-  }, time);
+  }, at);
 }
