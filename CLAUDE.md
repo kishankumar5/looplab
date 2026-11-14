@@ -28,7 +28,7 @@ check `node_modules/next/dist/docs/` before using an API you are unsure about.
 
 ### Tech stack
 
-<!-- Majors only; exact versions are pinned in package.json. "planned" = installed by the issue named. -->
+<!-- Majors only; exact versions are pinned in package.json. -->
 
 | Layer | Choice | Version |
 |---|---|---|
@@ -36,14 +36,14 @@ check `node_modules/next/dist/docs/` before using an API you are unsure about.
 | Framework | Next.js App Router, Turbopack | 16.x |
 | UI | React + Tailwind CSS | React 19, Tailwind 4 |
 | Language | TypeScript, `strict: true` | 5.x |
-| Audio | Tone.js (wraps the browser Web Audio API) | 15.x (planned, step grid issue) |
-| Database | PostgreSQL on Neon, accessed through Prisma | Postgres 17, Prisma latest (planned, database issue) |
-| Auth | Auth.js (`next-auth` v5), Credentials provider, **JWT session strategy** | v5 (planned, auth issue) |
+| Audio | Tone.js (wraps the browser Web Audio API), loaded on the first Play click | 15.x |
+| Database | PostgreSQL on Neon (Docker locally), accessed through Prisma with the `pg` driver adapter | Postgres 17, Prisma 7 |
+| Auth | Auth.js (`next-auth` v5 beta), Credentials provider, **JWT session strategy** | v5 |
 | Validation | Zod (shared by API routes and forms) | 4.x |
 | Unit / integration tests | Vitest + React Testing Library + jsdom | latest |
 | E2E tests | Playwright | latest |
-| API docs | OpenAPI 3.1 (`docs/openapi.yaml`) + Swagger UI at `/api-docs` | |
-| CI/CD | GitHub Actions + Vercel (preview deploy per PR, production on `main`) | |
+| API docs | OpenAPI 3.1 (`docs/openapi.yaml`) + Swagger UI (`swagger-ui-dist`) at `/api-docs` | |
+| CI/CD | GitHub Actions (lint, typecheck, tests, build, E2E, CodeQL, npm audit, dependency review) + Vercel (preview deploy per PR, production on `main`) | |
 
 ### Architecture
 
@@ -51,32 +51,42 @@ check `node_modules/next/dist/docs/` before using an API you are unsure about.
 src/
   app/                      # Routes only. Keep pages thin; logic lives in lib/ and hooks/.
     page.tsx                # Editor for a new, unsaved beat
-    beats/[id]/page.tsx     # Editor for a saved beat (owner only)
+    beats/[id]/page.tsx     # Editor for a saved beat (owner only; others go to /b/{id} or 404)
     b/[id]/page.tsx         # Shared, listen-only beat page (public)
     me/page.tsx             # My Beats
     gallery/page.tsx        # Public gallery
     signin/ register/       # Auth screens
-    api-docs/page.tsx       # Swagger UI
+    api-docs/               # Swagger UI (SwaggerDocs.tsx loads swagger-ui-dist in an effect)
     api/                    # Route handlers (route.ts). See "API route pattern" below.
   components/
-    ui/                     # Generic pieces: Button, Slider, Toggle, Dialog, Toast
-    sequencer/              # StepGrid, StepCell, TrackHeader, Transport, LofiPanel
-    beats/                  # BeatCard, BeatList, RemixCredit
-  hooks/                    # useSequencer (state + history), usePlayback (connects state to audio)
+    ui/                     # Generic pieces: RangeInput (slider with a commit event), Toast
+    sequencer/              # Editor, StepGrid, StepCell, TrackHeader, Transport, PlayButton, LofiPanel
+    beats/                  # BeatCard, LikeButton, SaveBar, VisibilityToggle, ShareButton, RemixButton,
+                            # RemixCredit, MyBeatRow, ListenOnlyBeat, SavedBeatEditor, SharedBeat
+    gallery/                # GalleryPreview (one card playing at a time)
+    auth/                   # SiteHeader, UserMenu, AuthForm, SignOutButton
+  hooks/                    # useSequencer (state + history), usePlayback (state to audio), useDraft,
+                            # useSpaceShortcut, useUndoShortcuts, useToast
   lib/
-    sequencer/              # PURE TypeScript. Pattern type, reducer, undo/redo history, swing math.
+    sequencer/              # PURE TypeScript: reducer.ts (every edit), history.ts (undo/redo).
                             # No React, no Tone.js, no browser APIs. 100% unit-testable.
-    audio/                  # The ONLY place that imports Tone.js. engine.ts exposes start/stop/update.
-    db/                     # Prisma client singleton + one file per model (beats.ts, users.ts, likes.ts)
-    auth/                   # Auth.js config and getCurrentUser() helper
-    validation/             # Zod schemas (beatPatternSchema, createBeatSchema, ...)
-    api/                    # apiError(), withAuth(), JSON response helpers
-prisma/schema.prisma
+    audio/                  # The ONLY place that imports Tone.js.
+                            #   engine.ts  start/stop/update, the 16th-note tick, the mix chain
+                            #   voices.ts  one synthesized instrument per row
+                            #   effects.ts muffle filter + vinyl crackle
+                            #   mix.ts     PURE audio maths (gains, cutoff, swing timing), tested without Tone
+    db/                     # prisma.ts (client singleton) + one file per area (beats.ts, users.ts)
+    auth/                   # index.ts (Auth.js wiring, getCurrentUserId) + callbacks.ts (testable logic)
+    validation/             # Zod schemas (beatPatternSchema, createBeatSchema, registerSchema, ...)
+    api/                    # apiError(), parseJsonBody()
+  generated/prisma/         # Generated Prisma client (git-ignored; `npm install` regenerates it)
+prisma/schema.prisma  prisma/migrations/  prisma.config.ts
 tests/
   integration/              # API route handlers against a real test database
-  e2e/                      # Playwright user flows
+  e2e/                      # Playwright user flows (helpers.ts seeds data with plain SQL)
+  config/                   # Repo checks: every API route is in openapi.yaml, .env.example, CI scans
 docs/
-  PRD.md  mockup/index.html  openapi.yaml  architecture.md  sprints/
+  PRD.md  mockup/index.html  openapi.yaml  architecture.md  contributions.md  sprints/
 ```
 
 **Key patterns**
@@ -86,8 +96,18 @@ docs/
   Components dispatch actions; they never mutate state.
 - **Audio follows state, one way.** `usePlayback` watches the current pattern and calls
   `lib/audio/engine.ts`. Components never call Tone.js directly. This keeps components testable.
+- **Sliders are one undo step per drag.** A slider's `onChange` calls `sequencer.preview(action)`
+  (applied and heard at once) and its release calls `sequencer.commit()` (one history entry). Use
+  `components/ui/RangeInput`, which fires `onCommit` on the native `change` event.
+- **The engine is one per page.** Anything that plays a beat outside the editor (the gallery's
+  preview buttons) talks to the same engine and hands it a new pattern with `engine.update`
+  instead of starting a second one.
 - **Server Components by default.** Add `"use client"` only to components that need state,
   effects, or event handlers (the sequencer, forms, like buttons).
+- **Cache Components is on (`cacheComponents: true`).** Anything that reads the session, cookies,
+  or `searchParams` must render inside `<Suspense>` and call `await connection()` before
+  `auth()`. Otherwise the build fails with "uncached data" or "crypto.getRandomValues during
+  prerendering". Pattern: a sync page that wraps an async child in `<Suspense>` (see `app/me/page.tsx`).
 - **API route pattern** (every `route.ts`):
   1. Parse and validate input with a Zod schema from `lib/validation`.
   2. Check auth and ownership with `lib/auth` helpers.
@@ -137,6 +157,16 @@ over nested `if`s. Run `npm run lint` and `npm run typecheck` before every commi
 - `typecheck` must be `next typegen && tsc --noEmit`. Next.js 16 generates route types such as
   `LayoutProps`; plain `tsc` fails without them.
 - If a command above doesn't exist yet, add it to `package.json` as part of your change.
+- **E2E seeding uses plain SQL** through `pg` (`tests/e2e/helpers.ts`). Playwright can't load the
+  generated Prisma client (it's an ES module that uses `import.meta`).
+- **Match short accessible names exactly** in Playwright: `getByRole("link", { name: "Edit", exact: true })`.
+  Names match by substring by default, so "Edit" also finds the header's "Editor" link.
+- **Mock whole audio modules** in engine tests (`vi.mock("./voices")`, `vi.mock("./effects")`) and
+  keep the fake Tone small. Put audio maths in `lib/audio/mix.ts` so it's tested without Tone.
+- **Tests that pin exact props** (`expect(page.props).toEqual({...})`) must be updated in the same
+  PR that adds a prop. Say so in the PR so the other partner knows their test changed.
+- Don't remove the Node 25 `localStorage` fix in `vitest.setup.ts`: Node's own `localStorage`
+  hides jsdom's and breaks every test that uses it.
 
 ---
 
@@ -193,7 +223,8 @@ and use the token names, never raw hex values in components:
 ## 3. Scrum & workflow
 
 - **Board:** GitHub Project "LoopLab" with columns Backlog → Sprint Todo → In Progress → In Review → Done.
-  Milestones: **Sprint 1** (due 2026-11-04), **Sprint 2** (due 2026-11-12).
+  Milestones: **Sprint 1** (Nov 9 to Nov 10), **Sprint 2** (Nov 11 to Nov 15; the deadline moved
+  from Nov 12).
 - **Every change starts from an issue.** If asked to do work with no issue, say so and suggest an
   issue title and acceptance criteria first.
 
@@ -240,6 +271,13 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 - **Merge with "Create a merge commit" or "Rebase and merge". Never squash**: squashing erases the
   failing-test-first commits that prove TDD.
 - Keep PRs under ~400 changed lines; split bigger issues.
+- **Open PRs against `main`; avoid stacking** (a PR whose base is another PR's branch). Stacks are
+  hard to review, and one change ripples through all of them. If you must stack: after merging
+  the bottom PR, **retarget the next PR to `main` before deleting the merged branch**. Deleting the
+  branch from the command line (`gh pr merge --delete-branch`, `git push --delete`) closes the PR
+  stacked on it instead of retargeting it.
+- **Delete each branch right after merging.** Every PR preview gets its own Neon database branch,
+  and the free plan allows 10; stale branches (including Dependabot's) make new previews fail.
 - Move the issue's card: In Progress when the branch is created, In Review when the PR opens
   (Done happens automatically when the PR merges).
 
@@ -273,12 +311,18 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 - Don't add AI or other paid third-party API calls.
 - Don't skip, delete, or loosen a failing test to get CI green. Fix the code or ask.
 - Don't edit the generated `AGENTS.md` block (Next.js rewrites it).
+- Don't run `prisma init` again: it also installs AI "skills" into `.claude/`, `.agents/`, and
+  `.windsurf/`. If those folders appear, delete them.
+- Don't forget `npx prisma generate` after `prisma migrate dev`: Prisma 7 no longer regenerates
+  the client on its own, so new columns look missing until you do.
+- Don't use `swagger-ui-react`: under Turbopack its operations never finish loading. Use
+  `swagger-ui-dist`, loaded in a `useEffect`.
 
 ### Preferred libraries
 
 `tone`, `zod`, `next-auth@5`, `@prisma/client` + `prisma`, `bcryptjs`, `vitest`, `@vitest/coverage-v8`,
-`jsdom`, `@vitejs/plugin-react`, `@testing-library/jest-dom`,
-`@testing-library/react`, `@testing-library/user-event`, `@playwright/test`, `swagger-ui-react`.
+`@prisma/adapter-pg` + `pg`, `jsdom`, `@vitejs/plugin-react`, `@testing-library/jest-dom`,
+`@testing-library/react`, `@testing-library/user-event`, `@playwright/test`, `swagger-ui-dist`.
 
 ### Security requirements
 - Secrets only in environment variables: `.env.local` locally (git-ignored), Vercel env settings for
@@ -314,3 +358,11 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 | 2026-10-28 | v1.1: documented `typecheck = next typegen && tsc --noEmit` and `@vitest/coverage-v8` | HW3 test: the AI lost time on a `LayoutProps` type error and skipped the coverage script |
 | 2026-10-28 | v1.1: test tooling is pre-approved; only other dependencies need asking | HW3 test: "ask before adding a dependency" conflicted with "include tests" when no test tools were installed |
 | 2026-10-28 | v1.1: UI changes need a screenshot (or an explicit note that none was taken) | HW3 test: the AI never looked at the page it built |
+| 2026-11-14 | v1.2: tech stack and architecture tree updated to what we built (Prisma 7 + `pg` adapter, `swagger-ui-dist`, `lib/audio` split into engine/voices/effects/mix, `components/gallery`, `tests/config`) | The v1.1 tree was written before any code and named files that were never built (`likes.ts`, `withAuth()`), which would point the AI at files that do not exist |
+| 2026-11-14 | v1.2: Cache Components rule (`<Suspense>` + `await connection()` before reading the session) | Sprint 1: the build failed with "uncached data" and "crypto.getRandomValues during prerendering" until every session read was wrapped |
+| 2026-11-14 | v1.2: don't use `swagger-ui-react`; use `swagger-ui-dist` | Sprint 1 (#15): Swagger UI operations never finished loading under Turbopack; caught by an E2E test |
+| 2026-11-14 | v1.2: E2E seeding with plain SQL; exact accessible-name matching in Playwright | Sprint 1: Playwright can't import the ESM Prisma client. Sprint 2 (#40): "Edit" matched the header's "Editor" link and failed CI |
+| 2026-11-14 | v1.2: `prisma init` and `prisma generate` warnings | Sprint 1 (#3): `prisma init` added AI skill files to `.claude/`; Prisma 7's `migrate dev` stopped regenerating the client |
+| 2026-11-14 | v1.2: slider preview/commit pattern; one engine per page | Sprint 2 (#11, #12, #13): keeps each drag a single undo step, and lets gallery previews reuse the editor's engine |
+| 2026-11-14 | v1.2: open PRs against `main`, how to retarget a stack safely, delete branches after merging | Sprint 1 retro: an 8-PR stack was slow to review; Sprint 2: deleting a base branch from the CLI closed #35, and stale branches used up Neon's 10 preview databases |
+| 2026-11-14 | v1.2: update tests that pin exact props in the same PR | Sprint 2 (#32): adding remix props broke the share-page and editor-page tests |
