@@ -23,3 +23,7 @@ Format: **Done** / **Next** / **Blocked**. Morning and evening, each partner.
 ### Fri Nov 13
 - **Nicholas:** **Done:** Reviewed, approved, and merged #34, #35, #36, #38, #40, #41, #37, #39 (the editor is live on production). Fixed a test-only bug in #40 (the "Edit" link check also matched the header's "Editor" link). Finished #14 remix on the share page and in the editor (#32). Built #7 muffle and vinyl crackle (#51), #13 gallery preview play (#52), #10 swing (#54), and the README plus contribution log (#53), all test-first. **Next:** resolve the merge conflicts between my open PRs as they merge; demo video. **Blocked:** Vercel previews fail on every PR: 9 Dependabot PRs plus ours went past Neon's 10 preview branches. Needs the Dependabot PRs closed and their Neon branches deleted.
 - **Kishan:**
+
+### Sat Nov 14
+- **Nicholas:** **Done:** CLAUDE.md v1.2 with the lessons from both sprints (#55). My parts of the Sprint 2 retro. **Next:** fix merge conflicts as #32, #51, #52, #54 merge; record my half of the demo video; individual reflection. **Blocked:** nothing.
+- **Kishan:**
