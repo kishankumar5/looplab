@@ -174,3 +174,34 @@ describe("sequencerReducer", () => {
     });
   });
 });
+
+describe("setEffect (#7)", () => {
+  it("sets muffle and crackle, leaving everything else alone", () => {
+    const start = defaultPattern();
+    const muffled = sequencerReducer(start, { type: "setEffect", effect: "muffle", value: 70 });
+    expect(muffled.effects).toEqual({ ...start.effects, muffle: 70 });
+    expect(muffled.tracks).toBe(start.tracks);
+    expect(muffled.bpm).toBe(start.bpm);
+    const crackly = sequencerReducer(muffled, { type: "setEffect", effect: "crackle", value: 5 });
+    expect(crackly.effects).toEqual({ muffle: 70, crackle: 5 });
+  });
+
+  it("clamps to 0..100 and rounds to whole numbers, like a saved beat stores", () => {
+    const start = defaultPattern();
+    expect(sequencerReducer(start, { type: "setEffect", effect: "muffle", value: 250 }).effects.muffle).toBe(100);
+    expect(sequencerReducer(start, { type: "setEffect", effect: "crackle", value: -3 }).effects.crackle).toBe(0);
+    expect(sequencerReducer(start, { type: "setEffect", effect: "muffle", value: 41.6 }).effects.muffle).toBe(42);
+  });
+
+  it("returns the same state for no change or a non-number, so history gets no empty step", () => {
+    const start = defaultPattern();
+    expect(sequencerReducer(start, { type: "setEffect", effect: "muffle", value: start.effects.muffle })).toBe(start);
+    expect(sequencerReducer(start, { type: "setEffect", effect: "crackle", value: Number.NaN })).toBe(start);
+  });
+
+  it("Clear leaves the effects alone", () => {
+    const start = sequencerReducer(defaultPattern(), { type: "setEffect", effect: "muffle", value: 90 });
+    const withStep = sequencerReducer(start, { type: "toggleStep", track: "kick", step: 0 });
+    expect(sequencerReducer(withStep, { type: "clear" }).effects.muffle).toBe(90);
+  });
+});

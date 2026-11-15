@@ -499,3 +499,23 @@ describe("Editor tempo", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 });
+
+describe("Editor lo-fi effects (#7)", () => {
+  it("starts with the beat's muffle and crackle", () => {
+    const initialPattern = defaultPattern();
+    initialPattern.effects = { muffle: 55, crackle: 12 };
+    renderEditor({ initialPattern });
+    expect(screen.getByRole("slider", { name: "Muffle" })).toHaveValue("55");
+    expect(screen.getByRole("slider", { name: "Vinyl crackle" })).toHaveValue("12");
+  });
+
+  it("a muffle change is one undo step", async () => {
+    renderEditor();
+    const muffle = screen.getByRole("slider", { name: "Muffle" });
+    const before = (muffle as HTMLInputElement).value;
+    fireEvent.change(muffle, { target: { value: "90" } });
+    expect(muffle).toHaveValue("90");
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(muffle).toHaveValue(before);
+  });
+});

@@ -134,3 +134,14 @@ describe("ListenOnlyBeat (US-5)", () => {
     expect(screen.getByText(/only you can see this page/i)).toBeInTheDocument();
   });
 });
+
+describe("ListenOnlyBeat lo-fi values (#7)", () => {
+  it("shows the saved muffle and crackle as text, not sliders", () => {
+    const pattern = savedPattern();
+    pattern.effects = { muffle: 62, crackle: 8 };
+    renderBeat({ pattern });
+    expect(screen.getByText("Muffle 62")).toBeInTheDocument();
+    expect(screen.getByText("Vinyl crackle 8")).toBeInTheDocument();
+    expect(screen.queryByRole("slider")).toBeNull();
+  });
+});
