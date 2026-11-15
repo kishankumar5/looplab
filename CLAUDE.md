@@ -92,7 +92,8 @@ docs/
 **Key patterns**
 - **Editor state is one reducer.** `sequencerReducer(state, action)` in `src/lib/sequencer/reducer.ts`
   handles every edit (toggle step, set tempo, set swing, set volume, mute, set effect, clear, load).
-  `withHistory()` wraps it for undo/redo (past / present / future arrays, max 50 entries).
+  `withHistory()` wraps it for undo/redo (past / present / future arrays, max 100 entries).
+An action that changes nothing must return the same state object, so it adds no undo entry.
   Components dispatch actions; they never mutate state.
 - **Audio follows state, one way.** `usePlayback` watches the current pattern and calls
   `lib/audio/engine.ts`. Components never call Tone.js directly. This keeps components testable.
@@ -102,6 +103,11 @@ docs/
 - **The engine is one per page.** Anything that plays a beat outside the editor (the gallery's
   preview buttons) talks to the same engine and hands it a new pattern with `engine.update`
   instead of starting a second one.
+- **The mix chain ends in a limiter.** Rows (each with its own gain) and effects feed the master,
+  then a limiter (-1 dB threshold, 20:1, hard knee, 0 ms attack, 250 ms release) so the mix can't
+  clip with every row at 100. Any new sound source must feed the master, not the destination.
+  The settings came from peak measurements in Chromium; re-measure before changing them, since
+  unit tests use a fake Tone and can't hear clipping.
 - **Server Components by default.** Add `"use client"` only to components that need state,
   effects, or event handlers (the sequencer, forms, like buttons).
 - **Cache Components is on (`cacheComponents: true`).** Anything that reads the session, cookies,
@@ -167,6 +173,11 @@ over nested `if`s. Run `npm run lint` and `npm run typecheck` before every commi
   PR that adds a prop. Say so in the PR so the other partner knows their test changed.
 - Don't remove the Node 25 `localStorage` fix in `vitest.setup.ts`: Node's own `localStorage`
   hides jsdom's and breaks every test that uses it.
+- **Database tests without Docker:** integration and E2E tests that need Postgres stop early
+  without a local database. Still write them, and say in the PR that CI is their first real run;
+  then watch the PR's checks.
+- **A person listens before merging audio changes.** Tests prove what the engine was told, not how
+  it sounds (levels, clicks, harshness).
 
 ---
 
@@ -261,6 +272,8 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 - Scopes: `grid`, `transport`, `lofi`, `history`, `audio`, `auth`, `beats`, `gallery`, `share`, `api`, `db`, `ci`, `docs`.
 - Examples: `test(grid): add failing tests for toggling steps (#4)`, `feat(grid): toggle steps on click (#4)`.
 - One logical change per commit. A TDD feature has at least two commits: `test` then `feat`.
+- In GitHub's web editor, type a message in this format instead of accepting the default
+  "Update file.md".
 
 ### Pull requests
 
@@ -296,7 +309,10 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 - Use the theme tokens and existing `components/ui` pieces before creating new ones.
 - Use `fetch` with small typed helpers for client calls; use Server Components for initial data.
 - Keep the audio engine as a single long-lived instance; start Tone.js only after a user click
-  (`Tone.start()` inside the Play handler).
+  (`Tone.start()` inside the Play handler). Load `tone` with a dynamic `import()` on that first
+  click: a top-level import creates an AudioContext on page load, which browsers block.
+- Time everything with Tone's Transport (schedule at `time`, plus any swing delay), never
+  `setInterval`: timers drift and the playhead falls out of sync with the sound.
 - Return 404 (not 403) for a private beat requested by a non-owner, so private beats can't be discovered.
 - Libraries in "Preferred libraries" below are pre-approved: install them when a task needs them.
   Ask before adding anything else, and say why in the PR.
@@ -366,3 +382,8 @@ Examples: `feature/4-step-grid`, `chore/1-ci-pipeline`, `fix/23-swing-off-by-one
 | 2026-11-14 | v1.2: slider preview/commit pattern; one engine per page | Sprint 2 (#11, #12, #13): keeps each drag a single undo step, and lets gallery previews reuse the editor's engine |
 | 2026-11-14 | v1.2: open PRs against `main`, how to retarget a stack safely, delete branches after merging | Sprint 1 retro: an 8-PR stack was slow to review; Sprint 2: deleting a base branch from the CLI closed #35, and stale branches used up Neon's 10 preview databases |
 | 2026-11-14 | v1.2: update tests that pin exact props in the same PR | Sprint 2 (#32): adding remix props broke the share-page and editor-page tests |
+| 2026-11-15 | v1.2 (Kishan): undo history is 100 entries, not 50; no-op actions return the same state | #12 built a 100-entry history; the rules still said 50 |
+| 2026-11-15 | v1.2 (Kishan): limiter at the end of the mix chain, measured settings, new sources feed the master | #11: five rows at 100 peaked at +2.87 dBFS and clipped; measured settings bring it to -0.54 dBFS |
+| 2026-11-15 | v1.2 (Kishan): load Tone.js with a dynamic import on the first Play; time with the Transport | #6: a top-level import created an AudioContext on page load; timers drift against the playhead |
+| 2026-11-15 | v1.2 (Kishan): database tests without Docker; listen before merging audio changes | Sprint 2: save/share/volume tests first ran in CI; tests can't hear levels or clicks |
+| 2026-11-15 | v1.2 (Kishan): proper commit messages in the GitHub web editor | Sprint 2: several doc commits went in as "Update standups.md" |
