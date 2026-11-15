@@ -3,16 +3,16 @@
 Who built, reviewed, and set up what, taken from the GitHub history (PR authors, approvals, and issue owners).
 Both partners used Claude Code with the shared rules in [`CLAUDE.md`](../CLAUDE.md); every PR was reviewed and approved by the other partner before merging.
 
-_Last updated: Fri Nov 13, 2026. PRs still in review are marked._
+_Last updated: Sun Nov 15, 2026. PRs still in review are marked._
 
 ## Summary
 
 | | Kishan Kumar Selvakumar Anandraj | Nicholas Kaplun |
 |---|---|---|
-| **Issues delivered** | #5, #6, #8 (editor half), #9, #11, #12, #16 | #1, #2, #3, #4, #7, #8 (API + My Beats half), #10, #13, #14, #15, #17 (diagrams, README) |
-| **PRs authored** | 8 (#34 to #41) | 18 (#20 to #33, #51 to #54) |
-| **PRs reviewed and approved** | 11 (#20 to #22, #24 to #31) | 8 (#34 to #41) |
-| **Infrastructure** | Vercel project, Neon database with per-PR preview branches, production `AUTH_SECRET`, security scanning, Dependabot | Test tooling and 4-stage CI, Prisma schema and migrations, Auth.js, OpenAPI spec and `/api-docs` |
+| **Issues delivered** | #2 (Vercel + Neon setup), #5, #6, #8 (editor half), #9, #11, #12, #16 | #1, #2 (deploy code), #3, #4, #7, #8 (API + My Beats half), #10, #13, #14, #15, #17 (diagrams, README) |
+| **PRs authored** | 8 (#34 to #41), plus commits to #21 and #23 | 19 (#20 to #33, #51 to #55) |
+| **PRs reviewed and approved** | 19 (#20 to #33, #51 to #55) | 8 (#34 to #41) |
+| **Infrastructure** | GitHub repo and project board, Vercel project, Neon database with per-PR preview branches, production `AUTH_SECRET`, security scanning, Dependabot | Test tooling and 4-stage CI, Prisma schema and migrations, Auth.js, OpenAPI spec and `/api-docs` |
 
 ## By feature
 
