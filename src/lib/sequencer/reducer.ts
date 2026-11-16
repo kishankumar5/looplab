@@ -3,6 +3,9 @@ import { MAX_BPM, MAX_SWING, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern
 /** A row's volume range (PRD US-3; the beat schema stores 0 to 100). */
 const MIN_VOLUME = 0;
 const MAX_VOLUME = 100;
+/** The lo-fi effects' range (PRD US-3; the beat schema stores 0 to 100). */
+const MIN_EFFECT = 0;
+const MAX_EFFECT = 100;
 
 /** Every edit the editor can make to a beat. `step` is 0-based. */
 export type SequencerAction =
@@ -11,7 +14,11 @@ export type SequencerAction =
   | { type: "setTempo"; bpm: number }
   | { type: "setVolume"; track: TrackId; volume: number }
   | { type: "toggleMute"; track: TrackId }
-  | { type: "setSwing"; swing: number };
+  | { type: "setSwing"; swing: number }
+  | { type: "setEffect"; effect: EffectId; value: number };
+
+/** The lo-fi effects (PRD US-3): muffle (low-pass filter) and vinyl crackle, each 0 to 100. */
+export type EffectId = keyof BeatPattern["effects"];
 
 /**
  * The editor's single reducer (PRD US-2). Pure: returns a new pattern and never mutates `state`,
@@ -31,6 +38,8 @@ export function sequencerReducer(state: BeatPattern, action: SequencerAction): B
       return toggleMute(state, action.track);
     case "setSwing":
       return setSwing(state, action.swing);
+    case "setEffect":
+      return setEffect(state, action.effect, action.value);
   }
 }
 
@@ -52,6 +61,16 @@ function setSwing(state: BeatPattern, swing: number): BeatPattern {
   if (!Number.isFinite(swing)) return state;
   const next = Math.min(MAX_SWING, Math.max(0, Math.round(swing)));
   return next === state.swing ? state : { ...state, swing: next };
+}
+
+/**
+ * Muffle or crackle as a whole number from 0 to 100, like a saved beat stores. Returns `state`
+ * itself for a no-op, so undo/redo history doesn't fill with empty changes.
+ */
+function setEffect(state: BeatPattern, effect: EffectId, value: number): BeatPattern {
+  if (!Number.isFinite(value)) return state;
+  const next = Math.min(MAX_EFFECT, Math.max(MIN_EFFECT, Math.round(value)));
+  return next === state.effects[effect] ? state : { ...state, effects: { ...state.effects, [effect]: next } };
 }
 
 /** Mutes an unmuted row, or unmutes a muted one; its volume and steps stay as they are. */
