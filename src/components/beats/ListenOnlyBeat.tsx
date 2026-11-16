@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LofiPanel } from "@/components/sequencer/LofiPanel";
 import { PlayButton } from "@/components/sequencer/PlayButton";
 import { StepGrid } from "@/components/sequencer/StepGrid";
 import { usePlayback } from "@/hooks/usePlayback";
@@ -64,6 +65,7 @@ export function ListenOnlyBeat(props: ListenOnlyBeatProps) {
         )}
       </div>
       <StepGrid pattern={pattern} playheadStep={playback.currentStep} />
+      <LofiPanel effects={pattern.effects} />
     </>
   );
 }

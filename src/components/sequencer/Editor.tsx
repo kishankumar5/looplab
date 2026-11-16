@@ -11,6 +11,7 @@ import { useUndoShortcuts } from "@/hooks/useUndoShortcuts";
 import { useState } from "react";
 import type { RemixOriginal } from "@/lib/db/beats";
 import type { BeatPattern } from "@/lib/validation/beat";
+import { LofiPanel } from "./LofiPanel";
 import { StepGrid } from "./StepGrid";
 import { Transport } from "./Transport";
 
@@ -83,6 +84,13 @@ export function Editor(props: EditorProps) {
         onVolumeChange={(track, volume) => sequencer.preview({ type: "setVolume", track, volume })}
         onVolumeCommit={sequencer.commit}
         onToggleMute={(track) => sequencer.edit({ type: "toggleMute", track })}
+      />
+      <LofiPanel
+        effects={pattern.effects}
+        controls={{
+          onChange: (effect, value) => sequencer.preview({ type: "setEffect", effect, value }),
+          onCommit: sequencer.commit,
+        }}
       />
     </>
   );

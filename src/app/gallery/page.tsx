@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { BeatCard } from "@/components/beats/BeatCard";
+import { GalleryPreviewProvider } from "@/components/gallery/GalleryPreview";
 import { getCurrentUserId } from "@/lib/auth";
 import { listPublicBeats } from "@/lib/db/beats";
 import { galleryQuerySchema, type GalleryQuery } from "@/lib/validation/gallery";
@@ -54,11 +55,13 @@ async function GalleryResults({ searchParams }: { searchParams: PageProps<"/gall
       {beats.length === 0 ? (
         <p className="text-muted">No public beats yet. Make one and share it!</p>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
-          {beats.map((beat) => (
-            <BeatCard key={beat.id} beat={beat} signedIn={viewerId !== null} />
-          ))}
-        </div>
+        <GalleryPreviewProvider>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+            {beats.map((beat) => (
+              <BeatCard key={beat.id} beat={beat} signedIn={viewerId !== null} />
+            ))}
+          </div>
+        </GalleryPreviewProvider>
       )}
 
       {totalPages > 1 && (

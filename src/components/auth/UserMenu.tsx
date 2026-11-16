@@ -10,14 +10,15 @@ export async function UserMenu() {
   const session = await auth();
   if (!session?.user) {
     return (
-      <Link href="/signin" className="text-sm text-accent-2 hover:underline">
+      <Link href="/signin" className="whitespace-nowrap text-sm text-accent-2 hover:underline">
         Sign in
       </Link>
     );
   }
   return (
-    <div className="flex items-center gap-3 text-sm text-muted">
-      <span>
+    <div className="flex min-w-0 grow basis-0 items-center justify-end gap-3 text-sm text-muted sm:grow-0 sm:basis-auto">
+      {/* Long display names get cut off with "…" instead of pushing Sign out off screen. */}
+      <span className="min-w-0 truncate">
         Signed in as <b className="text-text">{session.user.name}</b>
       </span>
       <SignOutButton />

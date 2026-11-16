@@ -38,6 +38,21 @@ describe.skipIf(!url)("remix (US-6)", () => {
     return { maya, original, pattern };
   }
 
+  it("keeps the whole pattern: steps, per-row volume and mute, swing, and lo-fi effects", async () => {
+    const maya = await seedUser(db!, "maya");
+    const pattern = defaultPattern();
+    pattern.bpm = 74;
+    pattern.swing = 45;
+    pattern.effects = { muffle: 60, crackle: 15 };
+    pattern.tracks.kick = { ...pattern.tracks.kick, volume: 35, muted: true };
+    pattern.tracks.hihat.steps[3] = true;
+    const original = await seedBeat(db!, maya.id, { title: "dusty tape", pattern });
+    auth.userId = (await seedUser(db!, "sam")).id;
+
+    const { beat } = await (await remix.POST(post(), ctx(original.id))).json();
+    expect(beat.pattern).toEqual(pattern);
+  });
+
   it("needs sign-in", async () => {
     const { original } = await seedOriginal();
     expect((await remix.POST(post(), ctx(original.id))).status).toBe(401);
