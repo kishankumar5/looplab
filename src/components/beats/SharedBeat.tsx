@@ -27,6 +27,9 @@ export async function SharedBeat({ params }: SharedBeatProps) {
       pattern={beat.pattern}
       isOwner={beat.isOwner}
       isPublic={beat.isPublic}
+      signedIn={viewerId !== null}
+      isRemix={beat.isRemix}
+      remixedFrom={beat.remixedFrom}
     />
   );
 }
