@@ -332,6 +332,35 @@ describe("audio engine", () => {
   });
 });
 
+describe("audio engine swing (#10)", () => {
+  it("delays every second 16th by the swing amount, sound and playhead together", async () => {
+    // 120 BPM: a 16th is 0.125 s, so 50% swing delays the off-beat 16ths by 0.0625 s.
+    const beat = pattern((p) => {
+      p.bpm = 120;
+      p.swing = 50;
+      p.tracks.kick.steps[0] = true;
+      p.tracks.kick.steps[1] = true;
+    });
+    await engine.start(beat, ignoreSteps);
+    tick(1);
+    tick(1.125);
+    expect(fake.voices.kick.mock.calls).toEqual([[1], [1.1875]]);
+    expect(fake.draw.schedule).toHaveBeenNthCalledWith(2, expect.any(Function), 1.1875);
+  });
+
+  it("changes swing live while playing", async () => {
+    await engine.start(pattern((p) => (p.bpm = 120)), ignoreSteps);
+    tick(0);
+    engine.update(pattern((p) => {
+      p.bpm = 120;
+      p.swing = 60;
+      p.tracks.snare.steps[1] = true;
+    }));
+    tick(0.125);
+    expect(fake.voices.snare).toHaveBeenCalledExactlyOnceWith(0.125 + 0.075);
+  });
+});
+
 describe("audio engine lo-fi effects (#7)", () => {
   it("sends every row through the effects, and the effects into the master", async () => {
     await engine.start(pattern(), ignoreSteps);

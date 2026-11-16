@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { RangeInput } from "@/components/ui/RangeInput";
-import { MAX_BPM, MIN_BPM } from "@/lib/validation/beat";
+import { MAX_BPM, MAX_SWING, MIN_BPM } from "@/lib/validation/beat";
 import { PlayButton } from "./PlayButton";
 
 export interface TransportProps {
@@ -11,6 +11,11 @@ export interface TransportProps {
   onTempoChange: (bpm: number) => void;
   /** The tempo slider was let go (or nudged with an arrow key): one history entry. */
   onTempoCommit: () => void;
+  /** Swing, 0 to 60% (PRD US-3). */
+  swing: number;
+  onSwingChange: (swing: number) => void;
+  /** The swing slider was let go: one history entry. */
+  onSwingCommit: () => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -26,11 +31,12 @@ const GHOST_BUTTON = `cursor-pointer rounded-lg border border-line px-3.5 py-2 d
 /** The bar above the grid (mockup Editor screen): Play/Stop, Tempo, then Undo, Redo, Clear, and `children`. */
 export function Transport(props: TransportProps) {
   const { playing, onTogglePlay, bpm, onTempoChange, onTempoCommit, onClear, children } = props;
+  const { swing, onSwingChange, onSwingCommit } = props;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-4 rounded-[10px] bg-panel px-3.5 py-3">
       <PlayButton playing={playing} onToggle={onTogglePlay} />
       <TempoSlider bpm={bpm} onChange={onTempoChange} onCommit={onTempoCommit} />
-      {/* TODO(#10): Swing slider */}
+      <SwingSlider swing={swing} onChange={onSwingChange} onCommit={onSwingCommit} />
       <span className="flex-1" />
       <HistoryButtons {...props} />
       <button type="button" onClick={onClear} className={GHOST_BUTTON}>
@@ -91,6 +97,33 @@ function TempoSlider({ bpm, onChange, onCommit }: TempoSliderProps) {
         onChange={onChange}
         onCommit={onCommit}
         className={`w-[130px] cursor-pointer accent-accent ${FOCUS_RING}`}
+      />
+    </div>
+  );
+}
+
+interface SwingSliderProps {
+  swing: number;
+  onChange: (swing: number) => void;
+  onCommit: () => void;
+}
+
+/** Swing, 0 to 60%: how late every second 16th note plays (PRD US-3). Value shown as text. */
+function SwingSlider({ swing, onChange, onCommit }: SwingSliderProps) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1 text-xs text-muted">
+      <label htmlFor={id}>Swing</label>
+      <span className="text-sm font-bold text-text">{swing}%</span>
+      <RangeInput
+        id={id}
+        min={0}
+        max={MAX_SWING}
+        value={swing}
+        aria-valuetext={`${swing}%`}
+        onChange={onChange}
+        onCommit={onCommit}
+        className={`w-[100px] cursor-pointer accent-accent ${FOCUS_RING}`}
       />
     </div>
   );

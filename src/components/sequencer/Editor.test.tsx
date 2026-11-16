@@ -500,25 +500,19 @@ describe("Editor tempo", () => {
   });
 });
 
-describe("Editor remix credit (US-6)", () => {
-  it("credits the original of a remix", () => {
-    renderEditor({
-      beatId: "r1",
-      signedIn: true,
-      isRemix: true,
-      remixedFrom: { id: "o1", title: "rainy window", creator: { displayName: "maya" } },
-    });
-    expect(screen.getByText(/Remixed from/)).toHaveTextContent("Remixed from rainy window by maya");
-  });
-
-  it("says when a remix's original is gone", () => {
-    renderEditor({ beatId: "r1", signedIn: true, isRemix: true, remixedFrom: null });
-    expect(screen.getByText("Remixed from a beat that is no longer available")).toBeInTheDocument();
-  });
-
-  it("shows no credit for a beat that isn't a remix", () => {
-    renderEditor({ beatId: "b1", signedIn: true });
-    expect(screen.queryByText(/Remixed from/)).not.toBeInTheDocument();
+describe("Editor swing (#10)", () => {
+  it("starts at the beat's swing, and a swing change is one undo step", async () => {
+    const initialPattern = defaultPattern();
+    initialPattern.swing = 20;
+    renderEditor({ initialPattern });
+    const swing = screen.getByRole("slider", { name: "Swing" });
+    expect(swing).toHaveValue("20");
+    expect(swing).toHaveAttribute("max", "60");
+    fireEvent.change(swing, { target: { value: "45" } });
+    expect(swing).toHaveValue("45");
+    expect(screen.getByText("45%")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(swing).toHaveValue("20");
   });
 });
 

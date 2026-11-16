@@ -1,4 +1,4 @@
-import { MAX_BPM, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type Track, type TrackId } from "@/lib/validation/beat";
+import { MAX_BPM, MAX_SWING, MIN_BPM, STEPS_PER_BAR, TRACK_IDS, type BeatPattern, type Track, type TrackId } from "@/lib/validation/beat";
 
 /** A row's volume range (PRD US-3; the beat schema stores 0 to 100). */
 const MIN_VOLUME = 0;
@@ -14,6 +14,7 @@ export type SequencerAction =
   | { type: "setTempo"; bpm: number }
   | { type: "setVolume"; track: TrackId; volume: number }
   | { type: "toggleMute"; track: TrackId }
+  | { type: "setSwing"; swing: number }
   | { type: "setEffect"; effect: EffectId; value: number };
 
 /** The lo-fi effects (PRD US-3): muffle (low-pass filter) and vinyl crackle, each 0 to 100. */
@@ -35,6 +36,8 @@ export function sequencerReducer(state: BeatPattern, action: SequencerAction): B
       return setVolume(state, action.track, action.volume);
     case "toggleMute":
       return toggleMute(state, action.track);
+    case "setSwing":
+      return setSwing(state, action.swing);
     case "setEffect":
       return setEffect(state, action.effect, action.value);
   }
@@ -48,6 +51,16 @@ function setVolume(state: BeatPattern, track: TrackId, volume: number): BeatPatt
   if (!Number.isFinite(volume)) return state;
   const next = Math.min(MAX_VOLUME, Math.max(MIN_VOLUME, Math.round(volume)));
   return next === state.tracks[track].volume ? state : withTrack(state, track, { volume: next });
+}
+
+/**
+ * Swing as a whole percentage from 0 to 60, like a saved beat stores. Returns `state` itself for a
+ * no-op, so undo/redo history doesn't fill with empty changes.
+ */
+function setSwing(state: BeatPattern, swing: number): BeatPattern {
+  if (!Number.isFinite(swing)) return state;
+  const next = Math.min(MAX_SWING, Math.max(0, Math.round(swing)));
+  return next === state.swing ? state : { ...state, swing: next };
 }
 
 /**

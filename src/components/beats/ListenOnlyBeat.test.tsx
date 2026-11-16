@@ -138,6 +138,18 @@ describe("ListenOnlyBeat (US-5)", () => {
   });
 });
 
+describe("ListenOnlyBeat swing (#10)", () => {
+  it("shows the saved swing next to the tempo, only when there is some", () => {
+    const pattern = savedPattern();
+    pattern.swing = 35;
+    const { unmount } = renderBeat({ pattern });
+    expect(screen.getByText(/swing 35%/)).toBeInTheDocument();
+    unmount();
+    renderBeat({ pattern: { ...pattern, swing: 0 } });
+    expect(screen.queryByText(/swing/)).toBeNull();
+  });
+});
+
 describe("ListenOnlyBeat lo-fi values (#7)", () => {
   it("shows the saved muffle and crackle as text, not sliders", () => {
     const pattern = savedPattern();

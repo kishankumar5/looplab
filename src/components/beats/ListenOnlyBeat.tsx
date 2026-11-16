@@ -41,6 +41,7 @@ export function ListenOnlyBeat(props: ListenOnlyBeatProps) {
         <h1 className="min-w-0 flex-1 text-[22px] font-bold">{title}</h1>
         <p className="text-sm text-muted">
           by <b className="text-text">{creator}</b> · {pattern.bpm} BPM
+          {pattern.swing > 0 && ` · swing ${pattern.swing}%`}
         </p>
         <div className="w-full">
           <RemixCredit isRemix={isRemix} remixedFrom={remixedFrom} />
