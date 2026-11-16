@@ -2,7 +2,7 @@
 
 A browser-based lo-fi beat maker. Toggle steps on a 5x16 grid, press play, shape the sound with lo-fi effects, then save your beat, share it by link, and remix other people's beats. No music training or install needed.
 
-**Live:** https://looplab-sand.vercel.app · **API docs:** https://looplab-sand.vercel.app/api-docs
+**Live:** https://looplab-sand.vercel.app · **API docs:** https://looplab-sand.vercel.app/api-docs · **Demo video:** [10-minute walkthrough](https://northeastern-my.sharepoint.com/:v:/g/personal/kaplun_n_northeastern_edu/IQAiGn8W5-FdRbs1n0LA_coAAT0q4ryssiKh8hfHskb8Jjk?e=kwldJR)
 
 CS6983 AI Coding, Fall 2026, Project 2. Team: Kishan Kumar Selvakumar Anandraj and Nicholas Kaplun.
 
