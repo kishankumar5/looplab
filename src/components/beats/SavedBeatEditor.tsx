@@ -29,6 +29,8 @@ export async function SavedBeatEditor({ params }: SavedBeatEditorProps) {
       initialPattern={beat.pattern}
       signedIn
       initialIsPublic={beat.isPublic}
+      isRemix={beat.isRemix}
+      remixedFrom={beat.remixedFrom}
     />
   );
 }

@@ -46,6 +46,8 @@ async function MyBeatsList() {
           bpm={beat.bpm}
           isPublic={beat.isPublic}
           editedAgo={timeAgo(beat.updatedAt)}
+          isRemix={beat.isRemix}
+          remixedFrom={beat.remixedFrom}
         />
       ))}
     </ul>

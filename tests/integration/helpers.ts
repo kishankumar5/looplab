@@ -20,7 +20,7 @@ export async function seedUser(db: PrismaClient, displayName = "user") {
 export async function seedBeat(
   db: PrismaClient,
   ownerId: string,
-  data: { title?: string; isPublic?: boolean; createdAt?: Date } = {},
+  data: { title?: string; isPublic?: boolean; createdAt?: Date; pattern?: object } = {},
 ) {
   return db.beat.create({ data: { ownerId, pattern: samplePattern, isPublic: true, ...data } });
 }
